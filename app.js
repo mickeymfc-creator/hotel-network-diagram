@@ -919,12 +919,60 @@ document.addEventListener("wheel",function(e){
    SAVE LAYOUT
 ========================================================== */
 
+function createLayoutData(){
+
+    return{
+
+        nodes:nodes.map(node=>({
+
+            id:node.id,
+            type:node.type,
+            text:node.text,
+            ip:node.ip || "",
+            model:node.model || "",
+            location:node.location || "",
+            notes:node.notes || "",
+            x:node.x,
+            y:node.y
+
+        })),
+
+        links:links.map(link=>[
+            link[0],
+            link[1]
+        ]),
+
+        zoom:zoom,
+        viewX:viewX,
+        viewY:viewY
+
+    };
+
+}
+
 function saveLayout(){
 
-    localStorage.setItem(
-        "hotel_layout",
-        JSON.stringify(nodes)
+    const data=createLayoutData();
+
+    const blob=new Blob(
+        [JSON.stringify(data,null,4)],
+        {type:"application/json"}
     );
+
+    const url=URL.createObjectURL(blob);
+
+    const a=document.createElement("a");
+
+    a.href=url;
+    a.download="hotel-network-diagram.json";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
 
 }
 
@@ -933,59 +981,91 @@ function saveLayout(){
    LOAD LAYOUT
 ========================================================== */
 
-function loadLayout(){
-
-    const data=localStorage.getItem("hotel_layout");
+function loadLayout(data){
 
     if(!data) return;
 
-    const arr=JSON.parse(data);
+    const layout=JSON.parse(data);
 
-    arr.forEach(n=>{
+    const loadedNodes=Array.isArray(layout) ? layout : layout.nodes;
 
-        const old=nodes.find(x=>x.id===n.id);
+    if(Array.isArray(loadedNodes)){
 
-        if(old){
+        nodes.splice(0,nodes.length);
 
-            old.x=n.x;
-            old.y=n.y;
+        loadedNodes.forEach(n=>{
 
-            old.text=n.text;
+            nodes.push({
 
-            old.ip=n.ip;
-            old.model=n.model;
-            old.location=n.location;
-            old.notes=n.notes;
+                id:n.id,
+                type:n.type,
+                text:n.text,
+                ip:n.ip || "",
+                model:n.model || "",
+                location:n.location || "",
+                notes:n.notes || "",
+                x:n.x,
+                y:n.y
 
-        }
+            });
 
-    });
+        });
+
+    }
+
+    if(Array.isArray(layout.links)){
+
+        links.splice(0,links.length);
+
+        layout.links.forEach(link=>{
+
+            if(Array.isArray(link) && link.length>=2){
+
+                links.push([
+                    link[0],
+                    link[1]
+                ]);
+
+            }
+
+        });
+
+    }
+
+    if(typeof layout.zoom==="number"){
+
+        zoom=layout.zoom;
+
+    }
+
+    if(typeof layout.viewX==="number"){
+
+        viewX=layout.viewX;
+
+    }
+
+    if(typeof layout.viewY==="number"){
+
+        viewY=layout.viewY;
+
+    }
 
 }
-
-
-/* ==========================================================
-   AUTO SAVE
-========================================================== */
-
-window.addEventListener("mouseup",function(){
-
-    saveLayout();
-
-});
 
 
 /* ==========================================================
    INITIALIZE
 ========================================================== */
 
-loadLayout();
-
 render();
 updateView();
 /* ==========================================================
    ADD DEVICE
 ========================================================== */
+
+const btnOpen=document.getElementById("btnOpen");
+const btnSave=document.getElementById("btnSave");
+const fileOpen=document.getElementById("fileOpen");
 
 const btnAddDevice=document.getElementById("btnAddDevice");
 const btnAddLink=document.getElementById("btnAddLink");
@@ -1001,6 +1081,51 @@ const contextMenu=document.getElementById("contextMenu");
 const cmRename=document.getElementById("cmRename");
 const cmDuplicate=document.getElementById("cmDuplicate");
 const cmDelete=document.getElementById("cmDelete");
+btnSave.onclick=function(){
+
+    saveLayout();
+
+};
+btnOpen.onclick=function(){
+
+    fileOpen.click();
+
+};
+fileOpen.onchange=function(){
+
+    const file=fileOpen.files[0];
+
+    if(!file) return;
+
+    const reader=new FileReader();
+
+    reader.onload=function(){
+
+        try{
+
+            loadLayout(reader.result);
+
+            selectedNode=null;
+            selectedElement=null;
+
+            render();
+            updateView();
+
+            document.getElementById("statusBar").textContent="Loaded "+file.name;
+
+        }catch(e){
+
+            alert("File JSON tidak valid");
+
+        }
+
+        fileOpen.value="";
+
+    };
+
+    reader.readAsText(file);
+
+};
 btnAddDevice.onclick=function(){
 
     deviceModal.style.display="flex";
