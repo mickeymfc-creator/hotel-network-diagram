@@ -14,6 +14,7 @@ const SVGNS = "http://www.w3.org/2000/svg";
 
 let selectedNode = null;
 let dragging = null;
+let dragStartPosition = null;
 
 let offsetX = 0;
 let offsetY = 0;
@@ -149,6 +150,133 @@ const links = [
 ["bo","pabx1"]
 
 ];
+
+
+/* ==========================================================
+   UNDO / REDO HISTORY
+========================================================== */
+
+const HISTORY_LIMIT = 100;
+const undoHistory = [];
+const redoHistory = [];
+
+function cloneDiagramState(){
+
+    return{
+
+        nodes:nodes.map(node=>({...node})),
+        links:links.map(link=>[link[0],link[1]])
+
+    };
+
+}
+
+function restoreDiagramState(state){
+
+    nodes.splice(0,nodes.length);
+
+    state.nodes.forEach(node=>{
+
+        nodes.push({...node});
+
+    });
+
+    links.splice(0,links.length);
+
+    state.links.forEach(link=>{
+
+        links.push([link[0],link[1]]);
+
+    });
+
+    selectedNode=null;
+    selectedElement=null;
+    contextTarget=null;
+    linkMode=false;
+    firstLinkNode=null;
+
+    render();
+    updateHistoryButtons();
+
+}
+
+function statesAreEqual(a,b){
+
+    return JSON.stringify(a)===JSON.stringify(b);
+
+}
+
+function recordHistory(){
+
+    const snapshot=cloneDiagramState();
+
+    if(undoHistory.length>0 && statesAreEqual(undoHistory[undoHistory.length-1],snapshot)){
+
+        return;
+
+    }
+
+    undoHistory.push(snapshot);
+
+    if(undoHistory.length>HISTORY_LIMIT){
+
+        undoHistory.shift();
+
+    }
+
+    redoHistory.splice(0,redoHistory.length);
+    updateHistoryButtons();
+
+}
+
+function undo(){
+
+    if(undoHistory.length===0) return;
+
+    redoHistory.push(cloneDiagramState());
+
+    const previous=undoHistory.pop();
+
+    restoreDiagramState(previous);
+
+}
+
+function redo(){
+
+    if(redoHistory.length===0) return;
+
+    undoHistory.push(cloneDiagramState());
+
+    if(undoHistory.length>HISTORY_LIMIT){
+
+        undoHistory.shift();
+
+    }
+
+    const next=redoHistory.pop();
+
+    restoreDiagramState(next);
+
+}
+
+function updateHistoryButtons(){
+
+    const btnUndo=document.getElementById("btnUndo");
+    const btnRedo=document.getElementById("btnRedo");
+
+    if(btnUndo){
+
+        btnUndo.disabled=undoHistory.length===0;
+
+    }
+
+    if(btnRedo){
+
+        btnRedo.disabled=redoHistory.length===0;
+
+    }
+
+}
 
 /* ==========================================================
    START
@@ -581,6 +709,8 @@ function drawLinks(){
 
                 if(idx>=0){
 
+                    recordHistory();
+
                     links.splice(idx,1);
 
                     render();
@@ -655,6 +785,8 @@ if(linkMode){
 
     if(firstLinkNode.id!==selectedNode.id){
 
+        recordHistory();
+
         links.push([
             firstLinkNode.id,
             selectedNode.id
@@ -700,6 +832,25 @@ document
 .onclick=function(){
 
     if(!selectedNode) return;
+
+    const nextState=cloneDiagramState();
+    const nextNode=nextState.nodes.find(node=>node.id===selectedNode.id);
+
+    if(nextNode){
+
+        nextNode.text=document.getElementById("propName").value;
+        nextNode.ip=document.getElementById("propIP").value;
+        nextNode.model=document.getElementById("propModel").value;
+        nextNode.location=document.getElementById("propLocation").value;
+        nextNode.notes=document.getElementById("propNotes").value;
+
+    }
+
+    if(!statesAreEqual(cloneDiagramState(),nextState)){
+
+        recordHistory();
+
+    }
 
     selectedNode.text=
         document.getElementById("propName").value;
@@ -754,6 +905,11 @@ function startDrag(e){
     offsetX=p.x-selectedNode.x;
     offsetY=p.y-selectedNode.y;
 
+    dragStartPosition={
+        x:selectedNode.x,
+        y:selectedNode.y
+    };
+
 }
 svg.addEventListener("contextmenu",function(e){
 
@@ -805,7 +961,24 @@ window.addEventListener("mouseup",function(){
 
     panMode=false;
 
+    if(dragging && selectedNode && dragStartPosition &&
+        (selectedNode.x!==dragStartPosition.x || selectedNode.y!==dragStartPosition.y)){
+
+        const movedNode=selectedNode;
+        const endX=selectedNode.x;
+        const endY=selectedNode.y;
+
+        selectedNode.x=dragStartPosition.x;
+        selectedNode.y=dragStartPosition.y;
+        recordHistory();
+        movedNode.x=endX;
+        movedNode.y=endY;
+
+    }
+
     dragging=null;
+    dragStartPosition=null;
+    updateHistoryButtons();
 
 });
 
@@ -850,6 +1023,8 @@ function drawLinksOnly(){
                 );
 
                 if(idx>=0){
+
+                    recordHistory();
 
                     links.splice(idx,1);
 
@@ -1050,6 +1225,10 @@ function loadLayout(data){
 
     }
 
+    undoHistory.splice(0,undoHistory.length);
+    redoHistory.splice(0,redoHistory.length);
+    updateHistoryButtons();
+
 }
 
 
@@ -1189,12 +1368,15 @@ function exportPNG(){
 
 render();
 updateView();
+updateHistoryButtons();
 /* ==========================================================
    ADD DEVICE
 ========================================================== */
 
 const btnOpen=document.getElementById("btnOpen");
 const btnSave=document.getElementById("btnSave");
+const btnUndo=document.getElementById("btnUndo");
+const btnRedo=document.getElementById("btnRedo");
 const fileOpen=document.getElementById("fileOpen");
 
 const btnAddDevice=document.getElementById("btnAddDevice");
@@ -1215,6 +1397,16 @@ const cmDelete=document.getElementById("cmDelete");
 btnSave.onclick=function(){
 
     saveLayout();
+
+};
+btnUndo.onclick=function(){
+
+    undo();
+
+};
+btnRedo.onclick=function(){
+
+    redo();
 
 };
 btnOpen.onclick=function(){
@@ -1294,6 +1486,8 @@ btnCreateDevice.onclick=function(){
 
     const label=type.toUpperCase()+"-"+String(count).padStart(3,"0");
 
+    recordHistory();
+
     nodes.push({
 
         id:id,
@@ -1319,6 +1513,22 @@ btnCreateDevice.onclick=function(){
 
 document.addEventListener("keydown",function(e){
 
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==="z"){
+
+        e.preventDefault();
+        undo();
+        return;
+
+    }
+
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==="y"){
+
+        e.preventDefault();
+        redo();
+        return;
+
+    }
+
     if(e.key!=="Delete") return;
 
     if(!selectedNode) return;
@@ -1326,6 +1536,8 @@ document.addEventListener("keydown",function(e){
     const idx=nodes.findIndex(n=>n.id===selectedNode.id);
 
     if(idx>=0){
+
+        recordHistory();
 
         nodes.splice(idx,1);
 
@@ -1364,6 +1576,8 @@ cmDelete.onclick=function(){
 
     if(idx>=0){
 
+        recordHistory();
+
         nodes.splice(idx,1);
 
     }
@@ -1399,6 +1613,12 @@ cmRename.onclick=function(){
 
     if(nama===null) return;
 
+    if(contextTarget.text!==nama.trim()){
+
+        recordHistory();
+
+    }
+
     contextTarget.text=nama.trim();
 
     contextMenu.style.display="none";
@@ -1421,6 +1641,8 @@ cmDuplicate.onclick=function(){
         y:contextTarget.y+40
 
     };
+
+    recordHistory();
 
     nodes.push(copy);
 
