@@ -6,6 +6,7 @@
 
 const svg = document.getElementById("diagram");
 const viewport = document.getElementById("viewport");
+const gridLayer = document.getElementById("gridLayer");
 
 const nodesLayer = document.getElementById("nodes");
 const linksLayer = document.getElementById("links");
@@ -36,6 +37,10 @@ let viewX=0;
 let viewY=0;
 const NODE_WIDTH = 90;
 const NODE_HEIGHT = 90;
+const GRID_SIZE = 20;
+
+let gridEnabled = true;
+let snapEnabled = true;
 
 /* ==========================================================
    DATA
@@ -287,6 +292,62 @@ render();
 /* ==========================================================
    RENDER
 ========================================================== */
+
+function snapToGrid(value){
+
+    return Math.round(value/GRID_SIZE)*GRID_SIZE;
+
+}
+
+function getSnappedPosition(x,y){
+
+    if(!snapEnabled){
+
+        return{x:x,y:y};
+
+    }
+
+    return{
+        x:snapToGrid(x),
+        y:snapToGrid(y)
+    };
+
+}
+
+function updateToggleButton(button,isActive){
+
+    if(!button) return;
+
+    button.classList.toggle("active",isActive);
+    button.setAttribute("aria-pressed",String(isActive));
+
+}
+
+function updateLayoutTools(){
+
+    if(gridLayer){
+
+        gridLayer.classList.toggle("hidden",!gridEnabled);
+        gridLayer.setAttribute(
+            "transform",
+            `translate(${viewX},${viewY}) scale(${zoom})`
+        );
+
+    }
+
+    updateToggleButton(document.getElementById("btnGrid"),gridEnabled);
+    updateToggleButton(document.getElementById("btnSnap"),snapEnabled);
+
+}
+
+function resetView(){
+
+    zoom=1;
+    viewX=0;
+    viewY=0;
+    updateView();
+
+}
 
 function render(){
 
@@ -945,8 +1006,10 @@ if(!dragging) return;
 
     );
 
-    selectedNode.x=p.x-offsetX;
-    selectedNode.y=p.y-offsetY;
+    const snappedPosition=getSnappedPosition(p.x-offsetX,p.y-offsetY);
+
+    selectedNode.x=snappedPosition.x;
+    selectedNode.y=snappedPosition.y;
 
     dragging.setAttribute(
         "transform",
@@ -1062,6 +1125,8 @@ function updateView(){
         "transform",
         `translate(${viewX},${viewY}) scale(${zoom})`
     );
+
+    updateLayoutTools();
 
 }
 
@@ -1369,6 +1434,7 @@ function exportPNG(){
 render();
 updateView();
 updateHistoryButtons();
+updateLayoutTools();
 /* ==========================================================
    ADD DEVICE
 ========================================================== */
@@ -1382,6 +1448,9 @@ const fileOpen=document.getElementById("fileOpen");
 const btnAddDevice=document.getElementById("btnAddDevice");
 const btnAddLink=document.getElementById("btnAddLink");
 const btnExportPNG=document.getElementById("btnExportPNG");
+const btnReset=document.getElementById("btnReset");
+const btnGrid=document.getElementById("btnGrid");
+const btnSnap=document.getElementById("btnSnap");
 
 const deviceModal=document.getElementById("deviceModal");
 
@@ -1459,6 +1528,23 @@ btnExportPNG.onclick=function(){
     exportPNG();
 
 };
+btnReset.onclick=function(){
+
+    resetView();
+
+};
+btnGrid.onclick=function(){
+
+    gridEnabled=!gridEnabled;
+    updateLayoutTools();
+
+};
+btnSnap.onclick=function(){
+
+    snapEnabled=!snapEnabled;
+    updateLayoutTools();
+
+};
 btnAddLink.onclick=function(){
 
     linkMode=true;
@@ -1496,9 +1582,9 @@ btnCreateDevice.onclick=function(){
 
         text:label,
 
-        x:350,
+        x:getSnappedPosition(350,220).x,
 
-        y:220
+        y:getSnappedPosition(350,220).y
 
     });
 
@@ -1636,9 +1722,9 @@ cmDuplicate.onclick=function(){
 
         id:contextTarget.type+"_"+Date.now(),
 
-        x:contextTarget.x+40,
+        x:getSnappedPosition(contextTarget.x+40,contextTarget.y+40).x,
 
-        y:contextTarget.y+40
+        y:getSnappedPosition(contextTarget.x+40,contextTarget.y+40).y
 
     };
 
