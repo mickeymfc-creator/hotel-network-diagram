@@ -1053,6 +1053,136 @@ function loadLayout(data){
 }
 
 
+
+/* ==========================================================
+   HIGH QUALITY PNG EXPORT
+========================================================== */
+
+function getDiagramBounds(){
+
+    const padding=50;
+
+    if(nodes.length===0){
+
+        return{
+            x:-padding,
+            y:-padding,
+            width:padding*2,
+            height:padding*2
+        };
+
+    }
+
+    let minX=Infinity;
+    let minY=Infinity;
+    let maxX=-Infinity;
+    let maxY=-Infinity;
+
+    nodes.forEach(node=>{
+
+        minX=Math.min(minX,node.x);
+        minY=Math.min(minY,node.y);
+        maxX=Math.max(maxX,node.x+NODE_WIDTH);
+        maxY=Math.max(maxY,node.y+NODE_HEIGHT);
+
+    });
+
+    return{
+        x:minX-padding,
+        y:minY-padding,
+        width:(maxX-minX)+(padding*2),
+        height:(maxY-minY)+(padding*2)
+    };
+
+}
+
+function createExportStyles(){
+
+    const style=document.createElementNS(SVGNS,"style");
+
+    style.textContent=`
+        .node rect{fill:#2f3b52;stroke:#5ea8ff;stroke-width:2;rx:8;}
+        .node circle,.deviceIcon{fill:#2f3136;stroke:#00c8ff;stroke-width:2;}
+        .node text{fill:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:13px;text-anchor:middle;dominant-baseline:middle;user-select:none;pointer-events:none;}
+        .link{stroke:#cfcfcf;stroke-width:2;fill:none;}
+    `;
+
+    return style;
+
+}
+
+function exportPNG(){
+
+    render();
+
+    const bounds=getDiagramBounds();
+    const scale=4;
+
+    const exportSvg=document.createElementNS(SVGNS,"svg");
+
+    exportSvg.setAttribute("xmlns",SVGNS);
+    exportSvg.setAttribute("width",bounds.width);
+    exportSvg.setAttribute("height",bounds.height);
+    exportSvg.setAttribute("viewBox",`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`);
+
+    exportSvg.appendChild(createExportStyles());
+
+    const exportViewport=document.createElementNS(SVGNS,"g");
+    const exportLinks=linksLayer.cloneNode(true);
+    const exportNodes=nodesLayer.cloneNode(true);
+
+    exportNodes
+        .querySelectorAll(".selected")
+        .forEach(node=>node.classList.remove("selected"));
+
+    exportViewport.appendChild(exportLinks);
+    exportViewport.appendChild(exportNodes);
+
+    exportSvg.appendChild(exportViewport);
+
+    const svgText=new XMLSerializer().serializeToString(exportSvg);
+    const blob=new Blob([svgText],{type:"image/svg+xml;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+
+    const img=new Image();
+
+    img.onload=function(){
+
+        const canvas=document.createElement("canvas");
+
+        canvas.width=Math.ceil(bounds.width*scale);
+        canvas.height=Math.ceil(bounds.height*scale);
+
+        const ctx=canvas.getContext("2d");
+
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.imageSmoothingEnabled=false;
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(function(pngBlob){
+
+            const pngUrl=URL.createObjectURL(pngBlob);
+            const a=document.createElement("a");
+
+            a.href=pngUrl;
+            a.download="Hotel-Network.png";
+
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            URL.revokeObjectURL(pngUrl);
+
+        },"image/png");
+
+    };
+
+    img.src=url;
+
+}
+
 /* ==========================================================
    INITIALIZE
 ========================================================== */
@@ -1069,6 +1199,7 @@ const fileOpen=document.getElementById("fileOpen");
 
 const btnAddDevice=document.getElementById("btnAddDevice");
 const btnAddLink=document.getElementById("btnAddLink");
+const btnExportPNG=document.getElementById("btnExportPNG");
 
 const deviceModal=document.getElementById("deviceModal");
 
@@ -1129,6 +1260,11 @@ fileOpen.onchange=function(){
 btnAddDevice.onclick=function(){
 
     deviceModal.style.display="flex";
+
+};
+btnExportPNG.onclick=function(){
+
+    exportPNG();
 
 };
 btnAddLink.onclick=function(){
