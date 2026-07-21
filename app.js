@@ -35,6 +35,8 @@ let viewX=0;
 let viewY=0;
 const NODE_WIDTH = 90;
 const NODE_HEIGHT = 90;
+const EXPORT_PADDING = 50;
+const EXPORT_SCALE = 4;
 
 /* ==========================================================
    DATA
@@ -548,6 +550,8 @@ function drawLinks(){
 
     links.forEach(link=>{
 
+        if(!isValidLink(link)) return;
+
         const from=findCenter(link[0]);
         const to=findCenter(link[1]);
 
@@ -612,9 +616,26 @@ function drawLinks(){
    FIND CENTER
 ========================================================== */
 
+function findNode(id){
+
+    return nodes.find(x=>x.id===id);
+
+}
+
+function isValidLink(link){
+
+    return Array.isArray(link) &&
+        link.length>=2 &&
+        findNode(link[0]) &&
+        findNode(link[1]);
+
+}
+
 function findCenter(id){
 
-    const n=nodes.find(x=>x.id===id);
+    const n=findNode(id);
+
+    if(!n) return null;
 
     return{
 
@@ -819,6 +840,8 @@ function drawLinksOnly(){
 
     links.forEach(link=>{
 
+        if(!isValidLink(link)) return;
+
         const from=findCenter(link[0]);
         const to=findCenter(link[1]);
 
@@ -916,15 +939,185 @@ document.addEventListener("wheel",function(e){
 
 
 /* ==========================================================
+   EXPORT PNG
+========================================================== */
+
+function getDiagramBounds(){
+
+    if(nodes.length===0) return null;
+
+    let minX=Infinity;
+    let minY=Infinity;
+    let maxX=-Infinity;
+    let maxY=-Infinity;
+
+    nodes.forEach(node=>{
+
+        minX=Math.min(minX,node.x);
+        minY=Math.min(minY,node.y);
+        maxX=Math.max(maxX,node.x+NODE_WIDTH);
+        maxY=Math.max(maxY,node.y+NODE_HEIGHT);
+
+    });
+
+    return{
+
+        x:minX-EXPORT_PADDING,
+        y:minY-EXPORT_PADDING,
+        width:(maxX-minX)+(EXPORT_PADDING*2),
+        height:(maxY-minY)+(EXPORT_PADDING*2)
+
+    };
+
+}
+
+function createExportSVG(bounds){
+
+    const exportSvg=document.createElementNS(SVGNS,"svg");
+
+    exportSvg.setAttribute("xmlns",SVGNS);
+    exportSvg.setAttribute("width",bounds.width);
+    exportSvg.setAttribute("height",bounds.height);
+    exportSvg.setAttribute("viewBox","0 0 "+bounds.width+" "+bounds.height);
+
+    const style=document.createElementNS(SVGNS,"style");
+
+    style.textContent=`
+        .node{cursor:pointer;}
+        .node rect{fill:#2f3b52;stroke:#5ea8ff;stroke-width:2;rx:8;}
+        .node text{fill:white;font-size:13px;text-anchor:middle;dominant-baseline:middle;pointer-events:none;user-select:none;}
+        .link{stroke:#cfcfcf;stroke-width:2;fill:none;}
+        .node circle{fill:#2f3136;stroke:#5ea8ff;stroke-width:2;}
+        .selected circle{stroke:#ff9800;stroke-width:3;}
+        .deviceIcon{fill:#2f3136;stroke:#00c8ff;stroke-width:2;}
+    `;
+
+    exportSvg.appendChild(style);
+
+    const exportViewport=document.createElementNS(SVGNS,"g");
+
+    exportViewport.setAttribute(
+        "transform",
+        `translate(${-bounds.x},${-bounds.y})`
+    );
+
+    exportViewport.appendChild(linksLayer.cloneNode(true));
+    exportViewport.appendChild(nodesLayer.cloneNode(true));
+
+    exportSvg.appendChild(exportViewport);
+
+    return exportSvg;
+
+}
+
+function exportPNG(){
+
+    const bounds=getDiagramBounds();
+
+    if(!bounds) return;
+
+    const exportSvg=createExportSVG(bounds);
+    const svgText=new XMLSerializer().serializeToString(exportSvg);
+
+    const blob=new Blob(
+        [svgText],
+        {type:"image/svg+xml;charset=utf-8"}
+    );
+
+    const url=URL.createObjectURL(blob);
+    const image=new Image();
+
+    image.onload=function(){
+
+        const canvas=document.createElement("canvas");
+
+        canvas.width=Math.ceil(bounds.width*EXPORT_SCALE);
+        canvas.height=Math.ceil(bounds.height*EXPORT_SCALE);
+
+        const ctx=canvas.getContext("2d");
+
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.setTransform(EXPORT_SCALE,0,0,EXPORT_SCALE,0,0);
+        ctx.drawImage(image,0,0);
+
+        URL.revokeObjectURL(url);
+
+        const a=document.createElement("a");
+
+        a.href=canvas.toDataURL("image/png");
+        a.download="Hotel-Network.png";
+
+        document.body.appendChild(a);
+
+        a.click();
+
+        document.body.removeChild(a);
+
+    };
+
+    image.src=url;
+
+}
+
+
+/* ==========================================================
    SAVE LAYOUT
 ========================================================== */
 
+function createLayoutData(){
+
+    return{
+
+        nodes:nodes.map(node=>({
+
+            id:node.id,
+            type:node.type,
+            text:node.text,
+            ip:node.ip || "",
+            model:node.model || "",
+            location:node.location || "",
+            notes:node.notes || "",
+            x:node.x,
+            y:node.y
+
+        })),
+
+        links:links.map(link=>[
+            link[0],
+            link[1]
+        ]),
+
+        zoom:zoom,
+        viewX:viewX,
+        viewY:viewY
+
+    };
+
+}
+
 function saveLayout(){
 
-    localStorage.setItem(
-        "hotel_layout",
-        JSON.stringify(nodes)
+    const data=createLayoutData();
+
+    const blob=new Blob(
+        [JSON.stringify(data,null,4)],
+        {type:"application/json"}
     );
+
+    const url=URL.createObjectURL(blob);
+
+    const a=document.createElement("a");
+
+    a.href=url;
+    a.download="hotel-network-diagram.json";
+
+    document.body.appendChild(a);
+
+    a.click();
+
+    document.body.removeChild(a);
+
+    URL.revokeObjectURL(url);
 
 }
 
@@ -933,59 +1126,92 @@ function saveLayout(){
    LOAD LAYOUT
 ========================================================== */
 
-function loadLayout(){
-
-    const data=localStorage.getItem("hotel_layout");
+function loadLayout(data){
 
     if(!data) return;
 
-    const arr=JSON.parse(data);
+    const layout=JSON.parse(data);
 
-    arr.forEach(n=>{
+    const loadedNodes=Array.isArray(layout) ? layout : layout.nodes;
 
-        const old=nodes.find(x=>x.id===n.id);
+    if(Array.isArray(loadedNodes)){
 
-        if(old){
+        nodes.splice(0,nodes.length);
 
-            old.x=n.x;
-            old.y=n.y;
+        loadedNodes.forEach(n=>{
 
-            old.text=n.text;
+            nodes.push({
 
-            old.ip=n.ip;
-            old.model=n.model;
-            old.location=n.location;
-            old.notes=n.notes;
+                id:n.id,
+                type:n.type,
+                text:n.text,
+                ip:n.ip || "",
+                model:n.model || "",
+                location:n.location || "",
+                notes:n.notes || "",
+                x:n.x,
+                y:n.y
 
-        }
+            });
 
-    });
+        });
+
+    }
+
+    if(Array.isArray(layout.links)){
+
+        links.splice(0,links.length);
+
+        layout.links.forEach(link=>{
+
+            if(isValidLink(link)){
+
+                links.push([
+                    link[0],
+                    link[1]
+                ]);
+
+            }
+
+        });
+
+    }
+
+    if(typeof layout.zoom==="number"){
+
+        zoom=layout.zoom;
+
+    }
+
+    if(typeof layout.viewX==="number"){
+
+        viewX=layout.viewX;
+
+    }
+
+    if(typeof layout.viewY==="number"){
+
+        viewY=layout.viewY;
+
+    }
 
 }
-
-
-/* ==========================================================
-   AUTO SAVE
-========================================================== */
-
-window.addEventListener("mouseup",function(){
-
-    saveLayout();
-
-});
 
 
 /* ==========================================================
    INITIALIZE
 ========================================================== */
 
-loadLayout();
-
 render();
 updateView();
 /* ==========================================================
    ADD DEVICE
 ========================================================== */
+
+const btnOpen=document.getElementById("btnOpen");
+const btnSave=document.getElementById("btnSave");
+const btnExportPNG=document.getElementById("btnExportPNG");
+const fileOpen=document.getElementById("fileOpen");
 
 const btnAddDevice=document.getElementById("btnAddDevice");
 const btnAddLink=document.getElementById("btnAddLink");
@@ -1001,6 +1227,56 @@ const contextMenu=document.getElementById("contextMenu");
 const cmRename=document.getElementById("cmRename");
 const cmDuplicate=document.getElementById("cmDuplicate");
 const cmDelete=document.getElementById("cmDelete");
+btnSave.onclick=function(){
+
+    saveLayout();
+
+};
+btnExportPNG.onclick=function(){
+
+    exportPNG();
+
+};
+btnOpen.onclick=function(){
+
+    fileOpen.click();
+
+};
+fileOpen.onchange=function(){
+
+    const file=fileOpen.files[0];
+
+    if(!file) return;
+
+    const reader=new FileReader();
+
+    reader.onload=function(){
+
+        try{
+
+            loadLayout(reader.result);
+
+            selectedNode=null;
+            selectedElement=null;
+
+            render();
+            updateView();
+
+            document.getElementById("statusBar").textContent="Loaded "+file.name;
+
+        }catch(e){
+
+            alert("File JSON tidak valid");
+
+        }
+
+        fileOpen.value="";
+
+    };
+
+    reader.readAsText(file);
+
+};
 btnAddDevice.onclick=function(){
 
     deviceModal.style.display="flex";
