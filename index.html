@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Hotel Network Diagram</title>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+<input
+    type="file"
+    id="fileOpen"
+    accept=".json"
+    style="display:none">
+<body>
+
+<div id="toolbar">
+
+    <div class="logo">
+        HOTEL NETWORK DIAGRAM
+    </div>
+
+    <div class="tools">
+
+        <button id="btnOpen">Open</button>
+
+<button id="btnSave">Save</button>
+
+<button id="btnAddDevice">+ Add Device</button>
+
+<button id="btnAddLink">+ Add Link</button>
+
+<button id="btnExportPNG">Export PNG</button>
+
+        <button id="btnExportSVG">Export SVG</button>
+
+        <button id="btnReset">Reset View</button>
+
+        <button id="btnGrid">Grid</button>
+
+        <button id="btnTheme">Dark / Light</button>
+
+    </div>
+
+</div>
+
+
+<div id="workspace">
+
+    <div id="canvasContainer">
+
+        <svg id="diagram">
+
+            <defs>
+
+                <pattern id="smallGrid"
+                    width="20"
+                    height="20"
+                    patternUnits="userSpaceOnUse">
+
+                    <path
+                        d="M20 0 L0 0 0 20"
+                        fill="none"
+                        stroke="#2c2c2c"
+                        stroke-width="0.5"/>
+
+                </pattern>
+
+                <pattern id="grid"
+                    width="100"
+                    height="100"
+                    patternUnits="userSpaceOnUse">
+
+                    <rect width="100"
+                          height="100"
+                          fill="url(#smallGrid)"/>
+
+                    <path
+                        d="M100 0 L0 0 0 100"
+                        fill="none"
+                        stroke="#404040"
+                        stroke-width="1"/>
+
+                </pattern>
+
+            </defs>
+
+            <rect
+    width="100%"
+    height="100%"
+    fill="url(#grid)"/>
+
+<g id="viewport">
+
+    <g id="links"></g>
+
+    <g id="nodes"></g>
+
+</g>
+
+        </svg>
+
+    </div>
+
+
+
+    <div id="propertyPanel">
+
+        <h2>Properties</h2>
+
+        <label>Name</label>
+
+        <input id="propName">
+
+        <label>IP Address</label>
+
+        <input id="propIP">
+
+        <label>Model</label>
+
+        <input id="propModel">
+
+        <label>Location</label>
+
+        <input id="propLocation">
+
+        <label>Notes</label>
+
+        <textarea
+            id="propNotes"
+            rows="8"></textarea>
+
+        <button id="btnUpdate">
+
+            Update
+
+        </button>
+
+    </div>
+
+</div>
+
+
+
+<div id="statusBar">
+
+    Ready
+
+</div>
+
+<div id="deviceModal" class="modal">
+
+    <div class="modalContent">
+
+        <h2>Add Device</h2>
+
+        <select id="deviceType">
+
+            <option value="router">Router</option>
+            <option value="switch">Switch</option>
+            <option value="ap">Access Point</option>
+            <option value="pc">PC</option>
+            <option value="nas">NAS</option>
+            <option value="camera">Camera</option>
+            <option value="dvr">DVR</option>
+            <option value="pabx">PABX</option>
+            <option value="cloud">Cloud</option>
+
+        </select>
+
+        <br><br>
+
+        <button id="btnCreateDevice">Create</button>
+
+        <button id="btnCloseDevice">Close</button>
+
+    </div>
+
+</div>
+
+<div id="contextMenu" class="contextMenu">
+
+    <div id="cmRename">Rename</div>
+
+    <div id="cmDuplicate">Duplicate</div>
+
+    <div id="cmDelete">Delete</div>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+
+</html>
