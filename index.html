@@ -44,7 +44,9 @@
 
         <button id="btnReset">Reset View</button>
 
-        <button id="btnGrid">Grid</button>
+        <button id="btnGrid" class="toggle active">Grid</button>
+
+        <button id="btnSnap" class="toggle active">Snap</button>
 
         <button id="btnTheme">Dark / Light</button>
 
@@ -69,8 +71,9 @@
                     <path
                         d="M20 0 L0 0 0 20"
                         fill="none"
-                        stroke="#2c2c2c"
-                        stroke-width="0.5"/>
+                        stroke="#ffffff"
+                        stroke-opacity="0.05"
+                        stroke-width="0.6"/>
 
                 </pattern>
 
@@ -86,17 +89,25 @@
                     <path
                         d="M100 0 L0 0 0 100"
                         fill="none"
-                        stroke="#404040"
-                        stroke-width="1"/>
+                        stroke="#ffffff"
+                        stroke-opacity="0.09"
+                        stroke-width="0.8"/>
 
                 </pattern>
 
             </defs>
 
-            <rect
-    width="100%"
-    height="100%"
-    fill="url(#grid)"/>
+            <g id="gridLayer">
+
+    <rect
+        id="gridBackground"
+        x="-10000"
+        y="-10000"
+        width="20000"
+        height="20000"
+        fill="url(#grid)"/>
+
+</g>
 
 <g id="viewport">
 
