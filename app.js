@@ -819,7 +819,7 @@ function startDrag(e) {
   pt.x = e.clientX;
   pt.y = e.clientY;
 
-  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const p = pt.matrixTransform(viewport.getScreenCTM().inverse());
 
   offsetX = p.x - selectedNode.x;
   offsetY = p.y - selectedNode.y;
@@ -851,7 +851,7 @@ svg.addEventListener("pointermove", function (e) {
   pt.x = e.clientX;
   pt.y = e.clientY;
 
-  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+  const p = pt.matrixTransform(viewport.getScreenCTM().inverse());
 
   const snappedPosition = getSnappedPosition(p.x - offsetX, p.y - offsetY);
 
@@ -1009,27 +1009,33 @@ function createLayoutData() {
   };
 }
 
-function saveLayout() {
-  const data = createLayoutData();
+async function saveLayout() {
 
-  const blob = new Blob([JSON.stringify(data, null, 4)], {
-    type: "application/json",
-  });
+    const data = createLayoutData();
 
-  const url = URL.createObjectURL(blob);
+    const res = await fetch("/api/layout", {
 
-  const a = document.createElement("a");
+        method: "POST",
 
-  a.href = url;
-  a.download = "hotel-network-diagram.json";
+        headers: {
+            "Content-Type": "application/json"
+        },
 
-  document.body.appendChild(a);
+        body: JSON.stringify(data)
 
-  a.click();
+    });
 
-  document.body.removeChild(a);
+    if (!res.ok) {
 
-  URL.revokeObjectURL(url);
+        alert("Gagal menyimpan.");
+
+        return;
+
+    }
+
+    document.getElementById("statusBar").textContent =
+        "Layout berhasil disimpan";
+
 }
 
 /* ==========================================================
@@ -1087,7 +1093,34 @@ function loadLayout(data) {
   redoHistory.splice(0, redoHistory.length);
   updateHistoryButtons();
 }
+async function loadLayoutFromServer() {
 
+    try {
+
+        const res = await fetch("/api/layout");
+
+        if (!res.ok) return;
+
+        const layout = await res.json();
+
+        loadLayout(JSON.stringify(layout));
+
+        selectedNode = null;
+        selectedElement = null;
+
+        render();
+        updateView();
+
+        document.getElementById("statusBar").textContent =
+            "Layout berhasil dimuat";
+
+    } catch (err) {
+
+        console.error(err);
+
+    }
+
+}
 /* ==========================================================
    HIGH QUALITY PNG EXPORT
 ========================================================== */
@@ -1214,6 +1247,7 @@ render();
 updateView();
 updateHistoryButtons();
 updateLayoutTools();
+loadLayoutFromServer();
 /* ==========================================================
    ADD DEVICE
 ========================================================== */
