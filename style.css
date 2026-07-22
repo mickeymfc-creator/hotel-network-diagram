@@ -132,6 +132,7 @@ html,body{
 
     cursor:grab;
 
+   touch-action: none;
 }
 
 #diagram:active{
