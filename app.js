@@ -22,19 +22,19 @@ let offsetY = 0;
 
 let selectedElement = null;
 
-let linkMode=false;
-let firstLinkNode=null;
+let linkMode = false;
+let firstLinkNode = null;
 
-let contextTarget=null;
-let panMode=false;
+let contextTarget = null;
+let panMode = false;
 
-let panStartX=0;
+let panStartX = 0;
 
-let panStartY=0;
+let panStartY = 0;
 
-let viewX=0;
+let viewX = 0;
 
-let viewY=0;
+let viewY = 0;
 const NODE_WIDTH = 90;
 const NODE_HEIGHT = 90;
 const GRID_SIZE = 20;
@@ -47,115 +47,110 @@ let snapEnabled = true;
 ========================================================== */
 
 const nodes = [
+  {
+    id: "isp1",
+    type: "cloud",
+    text: "ISP-1",
+    x: 80,
+    y: 70,
+  },
 
-{
-    id:"isp1",
-    type:"cloud",
-    text:"ISP-1",
-    x:80,
-    y:70
-},
+  {
+    id: "isp2",
+    type: "cloud",
+    text: "ISP-2",
+    x: 80,
+    y: 220,
+  },
 
-{
-    id:"isp2",
-    type:"cloud",
-    text:"ISP-2",
-    x:80,
-    y:220
-},
+  {
+    id: "router",
+    type: "router",
+    text: "Firewall",
+    x: 250,
+    y: 170,
+  },
 
-{
-    id:"router",
-    type:"router",
-    text:"Firewall",
-    x:250,
-    y:170
-},
+  {
+    id: "core",
+    type: "switch",
+    text: "Core Switch",
+    x: 470,
+    y: 170,
+  },
 
-{
-    id:"core",
-    type:"switch",
-    text:"Core Switch",
-    x:470,
-    y:170
-},
+  {
+    id: "bo",
+    type: "switch",
+    text: "BO Switch",
+    x: 700,
+    y: 20,
+  },
 
-{
-    id:"bo",
-    type:"switch",
-    text:"BO Switch",
-    x:700,
-    y:20
-},
+  {
+    id: "guest",
+    type: "switch",
+    text: "sw Guest",
+    x: 620,
+    y: 150,
+  },
 
-{
-    id:"guest",
-    type:"switch",
-    text:"sw Guest",
-    x:620,
-    y:150
-},
+  {
+    id: "cctv",
+    type: "switch",
+    text: "sw CCTV",
+    x: 620,
+    y: 280,
+  },
 
-{
-    id:"cctv",
-    type:"switch",
-    text:"sw CCTV",
-    x:620,
-    y:280
-},
+  {
+    id: "server1",
+    type: "pc",
+    text: "Server",
+    x: 900,
+    y: 20,
+  },
 
-{
-    id:"server1",
-    type:"pc",
-    text:"Server",
-    x:900,
-    y:20
-},
+  {
+    id: "nas1",
+    type: "nas",
+    text: "NAS",
+    x: 900,
+    y: 120,
+  },
 
-{
-    id:"nas1",
-    type:"nas",
-    text:"NAS",
-    x:900,
-    y:120
-},
+  {
+    id: "dvr1",
+    type: "dvr",
+    text: "DVR",
+    x: 900,
+    y: 220,
+  },
 
-{
-    id:"dvr1",
-    type:"dvr",
-    text:"DVR",
-    x:900,
-    y:220
-},
-
-{
-    id:"pabx1",
-    type:"pabx",
-    text:"PABX",
-    x:900,
-    y:320
-}
-
+  {
+    id: "pabx1",
+    type: "pabx",
+    text: "PABX",
+    x: 900,
+    y: 320,
+  },
 ];
 
 const links = [
+  ["isp1", "router"],
+  ["isp2", "router"],
 
-["isp1","router"],
-["isp2","router"],
+  ["router", "core"],
 
-["router","core"],
+  ["core", "bo"],
+  ["core", "guest"],
+  ["core", "cctv"],
 
-["core","bo"],
-["core","guest"],
-["core","cctv"],
-
-["bo","server1"],
-["bo","nas1"],
-["bo","dvr1"],
-["bo","pabx1"]
-
+  ["bo", "server1"],
+  ["bo", "nas1"],
+  ["bo", "dvr1"],
+  ["bo", "pabx1"],
 ];
-
 
 /* ==========================================================
    UNDO / REDO HISTORY
@@ -165,122 +160,95 @@ const HISTORY_LIMIT = 100;
 const undoHistory = [];
 const redoHistory = [];
 
-function cloneDiagramState(){
-
-    return{
-
-        nodes:nodes.map(node=>({...node})),
-        links:links.map(link=>[link[0],link[1]])
-
-    };
-
+function cloneDiagramState() {
+  return {
+    nodes: nodes.map((node) => ({ ...node })),
+    links: links.map((link) => [link[0], link[1]]),
+  };
 }
 
-function restoreDiagramState(state){
+function restoreDiagramState(state) {
+  nodes.splice(0, nodes.length);
 
-    nodes.splice(0,nodes.length);
+  state.nodes.forEach((node) => {
+    nodes.push({ ...node });
+  });
 
-    state.nodes.forEach(node=>{
+  links.splice(0, links.length);
 
-        nodes.push({...node});
+  state.links.forEach((link) => {
+    links.push([link[0], link[1]]);
+  });
 
-    });
+  selectedNode = null;
+  selectedElement = null;
+  contextTarget = null;
+  linkMode = false;
+  firstLinkNode = null;
 
-    links.splice(0,links.length);
-
-    state.links.forEach(link=>{
-
-        links.push([link[0],link[1]]);
-
-    });
-
-    selectedNode=null;
-    selectedElement=null;
-    contextTarget=null;
-    linkMode=false;
-    firstLinkNode=null;
-
-    render();
-    updateHistoryButtons();
-
+  render();
+  updateHistoryButtons();
 }
 
-function statesAreEqual(a,b){
-
-    return JSON.stringify(a)===JSON.stringify(b);
-
+function statesAreEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
-function recordHistory(){
+function recordHistory() {
+  const snapshot = cloneDiagramState();
 
-    const snapshot=cloneDiagramState();
+  if (
+    undoHistory.length > 0 &&
+    statesAreEqual(undoHistory[undoHistory.length - 1], snapshot)
+  ) {
+    return;
+  }
 
-    if(undoHistory.length>0 && statesAreEqual(undoHistory[undoHistory.length-1],snapshot)){
+  undoHistory.push(snapshot);
 
-        return;
+  if (undoHistory.length > HISTORY_LIMIT) {
+    undoHistory.shift();
+  }
 
-    }
-
-    undoHistory.push(snapshot);
-
-    if(undoHistory.length>HISTORY_LIMIT){
-
-        undoHistory.shift();
-
-    }
-
-    redoHistory.splice(0,redoHistory.length);
-    updateHistoryButtons();
-
+  redoHistory.splice(0, redoHistory.length);
+  updateHistoryButtons();
 }
 
-function undo(){
+function undo() {
+  if (undoHistory.length === 0) return;
 
-    if(undoHistory.length===0) return;
+  redoHistory.push(cloneDiagramState());
 
-    redoHistory.push(cloneDiagramState());
+  const previous = undoHistory.pop();
 
-    const previous=undoHistory.pop();
-
-    restoreDiagramState(previous);
-
+  restoreDiagramState(previous);
 }
 
-function redo(){
+function redo() {
+  if (redoHistory.length === 0) return;
 
-    if(redoHistory.length===0) return;
+  undoHistory.push(cloneDiagramState());
 
-    undoHistory.push(cloneDiagramState());
+  if (undoHistory.length > HISTORY_LIMIT) {
+    undoHistory.shift();
+  }
 
-    if(undoHistory.length>HISTORY_LIMIT){
+  const next = redoHistory.pop();
 
-        undoHistory.shift();
-
-    }
-
-    const next=redoHistory.pop();
-
-    restoreDiagramState(next);
-
+  restoreDiagramState(next);
 }
 
-function updateHistoryButtons(){
+function updateHistoryButtons() {
+  const btnUndo = document.getElementById("btnUndo");
+  const btnRedo = document.getElementById("btnRedo");
 
-    const btnUndo=document.getElementById("btnUndo");
-    const btnRedo=document.getElementById("btnRedo");
+  if (btnUndo) {
+    btnUndo.disabled = undoHistory.length === 0;
+  }
 
-    if(btnUndo){
-
-        btnUndo.disabled=undoHistory.length===0;
-
-    }
-
-    if(btnRedo){
-
-        btnRedo.disabled=redoHistory.length===0;
-
-    }
-
+  if (btnRedo) {
+    btnRedo.disabled = redoHistory.length === 0;
+  }
 }
 
 /* ==========================================================
@@ -293,1138 +261,949 @@ render();
    RENDER
 ========================================================== */
 
-function snapToGrid(value){
-
-    return Math.round(value/GRID_SIZE)*GRID_SIZE;
-
+function snapToGrid(value) {
+  return Math.round(value / GRID_SIZE) * GRID_SIZE;
 }
 
-function getSnappedPosition(x,y){
+function getSnappedPosition(x, y) {
+  if (!snapEnabled) {
+    return { x: x, y: y };
+  }
 
-    if(!snapEnabled){
-
-        return{x:x,y:y};
-
-    }
-
-    return{
-        x:snapToGrid(x),
-        y:snapToGrid(y)
-    };
-
+  return {
+    x: snapToGrid(x),
+    y: snapToGrid(y),
+  };
 }
 
-function updateToggleButton(button,isActive){
+function updateToggleButton(button, isActive) {
+  if (!button) return;
 
-    if(!button) return;
-
-    button.classList.toggle("active",isActive);
-    button.setAttribute("aria-pressed",String(isActive));
-
+  button.classList.toggle("active", isActive);
+  button.setAttribute("aria-pressed", String(isActive));
 }
 
-function updateLayoutTools(){
+function updateLayoutTools() {
+  if (gridLayer) {
+    gridLayer.classList.toggle("hidden", !gridEnabled);
+    gridLayer.setAttribute(
+      "transform",
+      `translate(${viewX},${viewY}) scale(${zoom})`,
+    );
+  }
 
-    if(gridLayer){
-
-        gridLayer.classList.toggle("hidden",!gridEnabled);
-        gridLayer.setAttribute(
-            "transform",
-            `translate(${viewX},${viewY}) scale(${zoom})`
-        );
-
-    }
-
-    updateToggleButton(document.getElementById("btnGrid"),gridEnabled);
-    updateToggleButton(document.getElementById("btnSnap"),snapEnabled);
-
+  updateToggleButton(document.getElementById("btnGrid"), gridEnabled);
+  updateToggleButton(document.getElementById("btnSnap"), snapEnabled);
 }
 
-function resetView(){
-
-    zoom=1;
-    viewX=0;
-    viewY=0;
-    updateView();
-
+function resetView() {
+  zoom = 1;
+  viewX = 0;
+  viewY = 0;
+  updateView();
 }
 
-function render(){
+function render() {
+  nodesLayer.innerHTML = "";
+  linksLayer.innerHTML = "";
 
-    nodesLayer.innerHTML="";
-    linksLayer.innerHTML="";
+  drawLinks();
 
-    drawLinks();
-
-    nodes.forEach(drawNode);
-
+  nodes.forEach(drawNode);
 }
 
 /* ==========================================================
    DRAW NODE
 ========================================================== */
 
-function drawNode(node){
+function drawNode(node) {
+  const g = document.createElementNS(SVGNS, "g");
 
-    const g=document.createElementNS(SVGNS,"g");
+  g.classList.add("node");
+  g.dataset.id = node.id;
 
-    g.classList.add("node");
-    g.dataset.id=node.id;
+  g.setAttribute("transform", `translate(${node.x},${node.y})`);
 
-    g.setAttribute(
-        "transform",
-        `translate(${node.x},${node.y})`
-    );
+  //------------------------------------
+  // Background
+  //------------------------------------
 
-    //------------------------------------
-    // Background
-    //------------------------------------
+  const circle = document.createElementNS(SVGNS, "circle");
 
-    const circle=document.createElementNS(SVGNS,"circle");
+  circle.setAttribute("cx", 45);
+  circle.setAttribute("cy", 30);
+  circle.setAttribute("r", 26);
 
-    circle.setAttribute("cx",45);
-    circle.setAttribute("cy",30);
-    circle.setAttribute("r",26);
+  circle.setAttribute("class", "deviceIcon");
 
-    circle.setAttribute("class","deviceIcon");
+  g.appendChild(circle);
 
-    g.appendChild(circle);
+  //------------------------------------
+  // ICON GROUP
+  //------------------------------------
 
-    //------------------------------------
-    // ICON GROUP
-    //------------------------------------
+  const icon = document.createElementNS(SVGNS, "g");
 
-    const icon=document.createElementNS(SVGNS,"g");
+  icon.setAttribute("stroke", "#ffffff");
+  icon.setAttribute("stroke-width", "2");
+  icon.setAttribute("fill", "none");
+  icon.setAttribute("stroke-linecap", "round");
+  icon.setAttribute("stroke-linejoin", "round");
 
-    icon.setAttribute("stroke","#ffffff");
-    icon.setAttribute("stroke-width","2");
-    icon.setAttribute("fill","none");
-    icon.setAttribute("stroke-linecap","round");
-    icon.setAttribute("stroke-linejoin","round");
-
-   if(node.type==="cloud"){
+  if (node.type === "cloud") {
     drawCloud(icon);
-}
+  }
 
-if(node.type==="router"){
+  if (node.type === "router") {
     drawRouter(icon);
-}
+  }
 
-if(node.type==="switch"){
+  if (node.type === "switch") {
     drawSwitch(icon);
-}
+  }
 
-    //------------------------------------
-    // AP
-    //------------------------------------
+  //------------------------------------
+  // AP
+  //------------------------------------
 
-    if(node.type==="ap"){
+  if (node.type === "ap") {
+    const c = document.createElementNS(SVGNS, "circle");
 
-        const c=document.createElementNS(SVGNS,"circle");
+    c.setAttribute("cx", 45);
+    c.setAttribute("cy", 31);
+    c.setAttribute("r", 4);
 
-        c.setAttribute("cx",45);
-        c.setAttribute("cy",31);
-        c.setAttribute("r",4);
+    icon.appendChild(c);
 
-        icon.appendChild(c);
+    [10, 16, 22].forEach((r) => {
+      const arc = document.createElementNS(SVGNS, "path");
 
-        [10,16,22].forEach(r=>{
+      arc.setAttribute("d", `M${45 - r} 31 A${r} ${r} 0 0 1 ${45 + r} 31`);
 
-            const arc=document.createElementNS(SVGNS,"path");
+      icon.appendChild(arc);
+    });
+  }
+  //------------------------------------
+  // PC
+  //------------------------------------
 
-            arc.setAttribute(
-                "d",
-                `M${45-r} 31 A${r} ${r} 0 0 1 ${45+r} 31`
-            );
+  if (node.type === "pc") {
+    const s = document.createElementNS(SVGNS, "rect");
 
-            icon.appendChild(arc);
-
-        });
-
-    }
-//------------------------------------
-// PC
-//------------------------------------
-
-if(node.type==="pc"){
-
-    const s=document.createElementNS(SVGNS,"rect");
-
-    s.setAttribute("x",34);
-    s.setAttribute("y",20);
-    s.setAttribute("width",22);
-    s.setAttribute("height",16);
-    s.setAttribute("rx",2);
+    s.setAttribute("x", 34);
+    s.setAttribute("y", 20);
+    s.setAttribute("width", 22);
+    s.setAttribute("height", 16);
+    s.setAttribute("rx", 2);
 
     icon.appendChild(s);
 
-    const stand=document.createElementNS(SVGNS,"line");
+    const stand = document.createElementNS(SVGNS, "line");
 
-    stand.setAttribute("x1",45);
-    stand.setAttribute("y1",36);
-    stand.setAttribute("x2",45);
-    stand.setAttribute("y2",42);
+    stand.setAttribute("x1", 45);
+    stand.setAttribute("y1", 36);
+    stand.setAttribute("x2", 45);
+    stand.setAttribute("y2", 42);
 
     icon.appendChild(stand);
 
-    const base=document.createElementNS(SVGNS,"line");
+    const base = document.createElementNS(SVGNS, "line");
 
-    base.setAttribute("x1",39);
-    base.setAttribute("y1",42);
-    base.setAttribute("x2",51);
-    base.setAttribute("y2",42);
+    base.setAttribute("x1", 39);
+    base.setAttribute("y1", 42);
+    base.setAttribute("x2", 51);
+    base.setAttribute("y2", 42);
 
     icon.appendChild(base);
+  }
 
-}
+  /*----------------------------------*/
+  // NAS
+  /*----------------------------------*/
 
-/*----------------------------------*/
-// NAS
-/*----------------------------------*/
+  if (node.type === "nas") {
+    const body = document.createElementNS(SVGNS, "rect");
 
-if(node.type==="nas"){
-
-    const body=document.createElementNS(SVGNS,"rect");
-
-    body.setAttribute("x",36);
-    body.setAttribute("y",18);
-    body.setAttribute("width",18);
-    body.setAttribute("height",24);
-    body.setAttribute("rx",2);
+    body.setAttribute("x", 36);
+    body.setAttribute("y", 18);
+    body.setAttribute("width", 18);
+    body.setAttribute("height", 24);
+    body.setAttribute("rx", 2);
 
     icon.appendChild(body);
 
-    for(let i=0;i<3;i++){
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElementNS(SVGNS, "circle");
 
-        const d=document.createElementNS(SVGNS,"circle");
+      d.setAttribute("cx", 40);
+      d.setAttribute("cy", 24 + i * 6);
+      d.setAttribute("r", 1);
 
-        d.setAttribute("cx",40);
-        d.setAttribute("cy",24+i*6);
-        d.setAttribute("r",1);
+      d.setAttribute("fill", "#ffffff");
 
-        d.setAttribute("fill","#ffffff");
-
-        icon.appendChild(d);
-
+      icon.appendChild(d);
     }
+  }
 
-}
+  /*----------------------------------*/
+  // CAMERA
+  /*----------------------------------*/
 
-/*----------------------------------*/
-// CAMERA
-/*----------------------------------*/
+  if (node.type === "camera") {
+    const body = document.createElementNS(SVGNS, "rect");
 
-if(node.type==="camera"){
-
-    const body=document.createElementNS(SVGNS,"rect");
-
-    body.setAttribute("x",34);
-    body.setAttribute("y",26);
-    body.setAttribute("width",18);
-    body.setAttribute("height",8);
+    body.setAttribute("x", 34);
+    body.setAttribute("y", 26);
+    body.setAttribute("width", 18);
+    body.setAttribute("height", 8);
 
     icon.appendChild(body);
 
-    const lens=document.createElementNS(SVGNS,"line");
+    const lens = document.createElementNS(SVGNS, "line");
 
-    lens.setAttribute("x1",52);
-    lens.setAttribute("y1",30);
+    lens.setAttribute("x1", 52);
+    lens.setAttribute("y1", 30);
 
-    lens.setAttribute("x2",60);
-    lens.setAttribute("y2",26);
+    lens.setAttribute("x2", 60);
+    lens.setAttribute("y2", 26);
 
     icon.appendChild(lens);
+  }
 
-}
+  /*----------------------------------*/
+  // DVR
+  /*----------------------------------*/
 
-/*----------------------------------*/
-// DVR
-/*----------------------------------*/
+  if (node.type === "dvr") {
+    const body = document.createElementNS(SVGNS, "rect");
 
-if(node.type==="dvr"){
+    body.setAttribute("x", 31);
+    body.setAttribute("y", 23);
 
-    const body=document.createElementNS(SVGNS,"rect");
-
-    body.setAttribute("x",31);
-    body.setAttribute("y",23);
-
-    body.setAttribute("width",28);
-    body.setAttribute("height",16);
+    body.setAttribute("width", 28);
+    body.setAttribute("height", 16);
 
     icon.appendChild(body);
 
-    const h=document.createElementNS(SVGNS,"circle");
+    const h = document.createElementNS(SVGNS, "circle");
 
-    h.setAttribute("cx",53);
-    h.setAttribute("cy",31);
+    h.setAttribute("cx", 53);
+    h.setAttribute("cy", 31);
 
-    h.setAttribute("r",2);
+    h.setAttribute("r", 2);
 
-    h.setAttribute("fill","#ffffff");
+    h.setAttribute("fill", "#ffffff");
 
     icon.appendChild(h);
+  }
 
-}
+  /*----------------------------------*/
+  // PABX
+  /*----------------------------------*/
 
-/*----------------------------------*/
-// PABX
-/*----------------------------------*/
+  if (node.type === "pabx") {
+    const body = document.createElementNS(SVGNS, "rect");
 
-if(node.type==="pabx"){
+    body.setAttribute("x", 34);
+    body.setAttribute("y", 20);
 
-    const body=document.createElementNS(SVGNS,"rect");
-
-    body.setAttribute("x",34);
-    body.setAttribute("y",20);
-
-    body.setAttribute("width",22);
-    body.setAttribute("height",20);
+    body.setAttribute("width", 22);
+    body.setAttribute("height", 20);
 
     icon.appendChild(body);
 
-    const line=document.createElementNS(SVGNS,"line");
+    const line = document.createElementNS(SVGNS, "line");
 
-    line.setAttribute("x1",45);
-    line.setAttribute("y1",20);
+    line.setAttribute("x1", 45);
+    line.setAttribute("y1", 20);
 
-    line.setAttribute("x2",45);
-    line.setAttribute("y2",40);
+    line.setAttribute("x2", 45);
+    line.setAttribute("y2", 40);
 
     icon.appendChild(line);
+  }
+  //------------------------------------
 
-}
-    //------------------------------------
+  g.appendChild(icon);
 
-    g.appendChild(icon);
+  //------------------------------------
 
-    //------------------------------------
+  const text = document.createElementNS(SVGNS, "text");
 
-    const text=document.createElementNS(SVGNS,"text");
+  text.setAttribute("x", 45);
+  text.setAttribute("y", 80);
 
-    text.setAttribute("x",45);
-    text.setAttribute("y",80);
+  text.setAttribute("text-anchor", "middle");
 
-    text.setAttribute("text-anchor","middle");
+  const lines = node.text.split("\n");
 
-    const lines=node.text.split("\n");
+  if (lines.length === 1) {
+    text.textContent = node.text;
+  } else {
+    lines.forEach((line, index) => {
+      const t = document.createElementNS(SVGNS, "tspan");
 
-    if(lines.length===1){
+      t.setAttribute("x", 45);
 
-        text.textContent=node.text;
+      t.setAttribute("dy", index === 0 ? "0" : "1.2em");
 
-    }else{
+      t.textContent = line;
 
-        lines.forEach((line,index)=>{
+      text.appendChild(t);
+    });
+  }
 
-            const t=document.createElementNS(SVGNS,"tspan");
+  g.appendChild(text);
+  g.style.touchAction = "none";
+  g.addEventListener("pointerdown", startDrag);
 
-            t.setAttribute("x",45);
-
-            t.setAttribute(
-                "dy",
-                index===0?"0":"1.2em"
-            );
-
-            t.textContent=line;
-
-            text.appendChild(t);
-
-        });
-
-    }
-
-    g.appendChild(text);
-
-    g.addEventListener("mousedown",startDrag);
-
-    g.addEventListener("click",function(e){
-
-    selectedElement=g;
+  g.addEventListener("click", function (e) {
+    selectedElement = g;
 
     selectNode(e);
-
-});
-g.addEventListener("contextmenu",function(e){
-
+  });
+  g.addEventListener("contextmenu", function (e) {
     e.preventDefault();
 
-    contextTarget=node;
+    contextTarget = node;
 
-    contextMenu.style.display="block";
+    contextMenu.style.display = "block";
 
-    contextMenu.style.left=e.pageX+"px";
+    contextMenu.style.left = e.pageX + "px";
 
-    contextMenu.style.top=e.pageY+"px";
-
-});
-nodesLayer.appendChild(g);
-
+    contextMenu.style.top = e.pageY + "px";
+  });
+  nodesLayer.appendChild(g);
 }
-function drawCloud(icon){
+function drawCloud(icon) {
+  const path = document.createElementNS(SVGNS, "path");
 
-    const path=document.createElementNS(SVGNS,"path");
+  path.setAttribute(
+    "d",
+    "M30 35 Q30 28 37 28 Q39 21 47 23 Q53 20 58 26 Q65 26 65 34 Q65 39 59 39 L36 39 Q30 39 30 35",
+  );
 
-    path.setAttribute(
-        "d",
-        "M30 35 Q30 28 37 28 Q39 21 47 23 Q53 20 58 26 Q65 26 65 34 Q65 39 59 39 L36 39 Q30 39 30 35"
-    );
-
-    icon.appendChild(path);
-
+  icon.appendChild(path);
 }
 
-function drawRouter(icon){
+function drawRouter(icon) {
+  const r = document.createElementNS(SVGNS, "rect");
 
-    const r=document.createElementNS(SVGNS,"rect");
+  r.setAttribute("x", 33);
+  r.setAttribute("y", 22);
+  r.setAttribute("width", 24);
+  r.setAttribute("height", 16);
+  r.setAttribute("rx", 3);
 
-    r.setAttribute("x",33);
-    r.setAttribute("y",22);
-    r.setAttribute("width",24);
-    r.setAttribute("height",16);
-    r.setAttribute("rx",3);
+  icon.appendChild(r);
 
-    icon.appendChild(r);
+  for (let i = 0; i < 4; i++) {
+    const l = document.createElementNS(SVGNS, "line");
 
-    for(let i=0;i<4;i++){
+    l.setAttribute("x1", 36 + i * 6);
+    l.setAttribute("y1", 41);
 
-        const l=document.createElementNS(SVGNS,"line");
+    l.setAttribute("x2", 36 + i * 6);
+    l.setAttribute("y2", 46);
 
-        l.setAttribute("x1",36+i*6);
-        l.setAttribute("y1",41);
-
-        l.setAttribute("x2",36+i*6);
-        l.setAttribute("y2",46);
-
-        icon.appendChild(l);
-
-    }
-
+    icon.appendChild(l);
+  }
 }
 
-function drawSwitch(icon){
+function drawSwitch(icon) {
+  const r = document.createElementNS(SVGNS, "rect");
 
-    const r=document.createElementNS(SVGNS,"rect");
+  r.setAttribute("x", 31);
+  r.setAttribute("y", 24);
 
-    r.setAttribute("x",31);
-    r.setAttribute("y",24);
+  r.setAttribute("width", 28);
+  r.setAttribute("height", 14);
 
-    r.setAttribute("width",28);
-    r.setAttribute("height",14);
+  icon.appendChild(r);
 
-    icon.appendChild(r);
+  for (let i = 0; i < 6; i++) {
+    const p = document.createElementNS(SVGNS, "line");
 
-    for(let i=0;i<6;i++){
+    p.setAttribute("x1", 34 + i * 4);
+    p.setAttribute("y1", 28);
 
-        const p=document.createElementNS(SVGNS,"line");
+    p.setAttribute("x2", 34 + i * 4);
+    p.setAttribute("y2", 34);
 
-        p.setAttribute("x1",34+i*4);
-        p.setAttribute("y1",28);
-
-        p.setAttribute("x2",34+i*4);
-        p.setAttribute("y2",34);
-
-        icon.appendChild(p);
-
-    }
-
+    icon.appendChild(p);
+  }
 }
 
 /* ==========================================================
    DRAW LINKS
 ========================================================== */
 
-function drawLinks(){
+function drawLinks() {
+  links.forEach((link) => {
+    const from = findCenter(link[0]);
+    const to = findCenter(link[1]);
 
-    links.forEach(link=>{
+    // garis klik (tidak terlihat)
+    const hit = document.createElementNS(SVGNS, "line");
 
-        const from=findCenter(link[0]);
-        const to=findCenter(link[1]);
+    hit.setAttribute("x1", from.x);
+    hit.setAttribute("y1", from.y);
+    hit.setAttribute("x2", to.x);
+    hit.setAttribute("y2", to.y);
 
-        // garis klik (tidak terlihat)
-        const hit=document.createElementNS(SVGNS,"line");
+    hit.setAttribute("stroke", "transparent");
+    hit.setAttribute("stroke-width", "16");
+    hit.style.pointerEvents = "stroke";
 
-        hit.setAttribute("x1",from.x);
-        hit.setAttribute("y1",from.y);
-        hit.setAttribute("x2",to.x);
-        hit.setAttribute("y2",to.y);
+    hit.dataset.from = link[0];
+    hit.dataset.to = link[1];
 
-        hit.setAttribute("stroke","transparent");
-        hit.setAttribute("stroke-width","16");
-        hit.style.pointerEvents="stroke";
+    hit.addEventListener("click", function (e) {
+      e.stopPropagation();
 
-        hit.dataset.from=link[0];
-        hit.dataset.to=link[1];
+      if (confirm("Hapus link ini?")) {
+        const idx = links.findIndex(
+          (l) => l[0] === this.dataset.from && l[1] === this.dataset.to,
+        );
 
-        hit.addEventListener("click",function(e){
+        if (idx >= 0) {
+          recordHistory();
 
-            e.stopPropagation();
+          links.splice(idx, 1);
 
-            if(confirm("Hapus link ini?")){
-
-                const idx=links.findIndex(l=>
-
-                    l[0]===this.dataset.from &&
-                    l[1]===this.dataset.to
-
-                );
-
-                if(idx>=0){
-
-                    recordHistory();
-
-                    links.splice(idx,1);
-
-                    render();
-
-                }
-
-            }
-
-        });
-
-        // garis yang terlihat
-        const line=document.createElementNS(SVGNS,"line");
-
-        line.classList.add("link");
-
-        line.setAttribute("x1",from.x);
-        line.setAttribute("y1",from.y);
-        line.setAttribute("x2",to.x);
-        line.setAttribute("y2",to.y);
-
-        linksLayer.appendChild(hit);
-        linksLayer.appendChild(line);
-
+          render();
+        }
+      }
     });
 
+    // garis yang terlihat
+    const line = document.createElementNS(SVGNS, "line");
+
+    line.classList.add("link");
+
+    line.setAttribute("x1", from.x);
+    line.setAttribute("y1", from.y);
+    line.setAttribute("x2", to.x);
+    line.setAttribute("y2", to.y);
+
+    linksLayer.appendChild(hit);
+    linksLayer.appendChild(line);
+  });
 }
 
 /* ==========================================================
    FIND CENTER
 ========================================================== */
 
-function findCenter(id){
+function findCenter(id) {
+  const n = nodes.find((x) => x.id === id);
 
-    const n=nodes.find(x=>x.id===id);
-
-    return{
-
-        x:n.x+(NODE_WIDTH/2),
-        y:n.y+32
-
-    };
-
+  return {
+    x: n.x + NODE_WIDTH / 2,
+    y: n.y + 32,
+  };
 }
 
 /* ==========================================================
    SELECT NODE
 ========================================================== */
 
-function selectNode(e){
+function selectNode(e) {
+  document
+    .querySelectorAll(".node")
+    .forEach((n) => n.classList.remove("selected"));
 
-    document
-        .querySelectorAll(".node")
-        .forEach(n=>n.classList.remove("selected"));
+  e.currentTarget.classList.add("selected");
 
-    e.currentTarget.classList.add("selected");
+  const id = e.currentTarget.dataset.id;
 
-    const id=e.currentTarget.dataset.id;
+  selectedNode = nodes.find((x) => x.id === id);
+  if (linkMode) {
+    if (firstLinkNode == null) {
+      firstLinkNode = selectedNode;
 
-    selectedNode=nodes.find(x=>x.id===id);
-if(linkMode){
-
-    if(firstLinkNode==null){
-
-        firstLinkNode=selectedNode;
-
-        document.getElementById("statusBar").textContent=
+      document.getElementById("statusBar").textContent =
         "LINK MODE : pilih device kedua";
 
-        return;
-
+      return;
     }
 
-    if(firstLinkNode.id!==selectedNode.id){
+    if (firstLinkNode.id !== selectedNode.id) {
+      recordHistory();
 
-        recordHistory();
-
-        links.push([
-            firstLinkNode.id,
-            selectedNode.id
-        ]);
-
+      links.push([firstLinkNode.id, selectedNode.id]);
     }
 
-    firstLinkNode=null;
+    firstLinkNode = null;
 
-    linkMode=false;
+    linkMode = false;
 
     render();
 
-    document.getElementById("statusBar").textContent="Ready";
+    document.getElementById("statusBar").textContent = "Ready";
 
     return;
+  }
 
-}
+  document.getElementById("propName").value = selectedNode.text;
 
-    document.getElementById("propName").value=
-        selectedNode.text;
+  document.getElementById("propIP").value = selectedNode.ip || "";
 
-    document.getElementById("propIP").value=
-        selectedNode.ip || "";
+  document.getElementById("propModel").value = selectedNode.model || "";
 
-    document.getElementById("propModel").value=
-        selectedNode.model || "";
+  document.getElementById("propLocation").value = selectedNode.location || "";
 
-    document.getElementById("propLocation").value=
-        selectedNode.location || "";
-
-    document.getElementById("propNotes").value=
-        selectedNode.notes || "";
-
+  document.getElementById("propNotes").value = selectedNode.notes || "";
 }
 
 /* ==========================================================
    UPDATE PROPERTY
 ========================================================== */
 
-document
-.getElementById("btnUpdate")
-.onclick=function(){
+document.getElementById("btnUpdate").onclick = function () {
+  if (!selectedNode) return;
 
-    if(!selectedNode) return;
+  const nextState = cloneDiagramState();
+  const nextNode = nextState.nodes.find((node) => node.id === selectedNode.id);
 
-    const nextState=cloneDiagramState();
-    const nextNode=nextState.nodes.find(node=>node.id===selectedNode.id);
+  if (nextNode) {
+    nextNode.text = document.getElementById("propName").value;
+    nextNode.ip = document.getElementById("propIP").value;
+    nextNode.model = document.getElementById("propModel").value;
+    nextNode.location = document.getElementById("propLocation").value;
+    nextNode.notes = document.getElementById("propNotes").value;
+  }
 
-    if(nextNode){
+  if (!statesAreEqual(cloneDiagramState(), nextState)) {
+    recordHistory();
+  }
 
-        nextNode.text=document.getElementById("propName").value;
-        nextNode.ip=document.getElementById("propIP").value;
-        nextNode.model=document.getElementById("propModel").value;
-        nextNode.location=document.getElementById("propLocation").value;
-        nextNode.notes=document.getElementById("propNotes").value;
+  selectedNode.text = document.getElementById("propName").value;
 
-    }
+  selectedNode.ip = document.getElementById("propIP").value;
 
-    if(!statesAreEqual(cloneDiagramState(),nextState)){
+  selectedNode.model = document.getElementById("propModel").value;
 
-        recordHistory();
+  selectedNode.location = document.getElementById("propLocation").value;
 
-    }
+  selectedNode.notes = document.getElementById("propNotes").value;
 
-    selectedNode.text=
-        document.getElementById("propName").value;
-
-    selectedNode.ip=
-        document.getElementById("propIP").value;
-
-    selectedNode.model=
-        document.getElementById("propModel").value;
-
-    selectedNode.location=
-        document.getElementById("propLocation").value;
-
-    selectedNode.notes=
-        document.getElementById("propNotes").value;
-
-    render();
-
+  render();
 };
 /* ==========================================================
    DRAG ENGINE
 ========================================================== */
-svg.addEventListener("mousedown",function(e){
+svg.addEventListener("pointerdown", function (e) {
+  if (e.pointerType === "mouse" && e.button === 2) {
+    panMode = true;
 
-    if(e.button!==2) return;
+    panStartX = e.clientX - viewX;
+    panStartY = e.clientY - viewY;
 
-    panMode=true;
-
-    panStartX=e.clientX-viewX;
-
-    panStartY=e.clientY-viewY;
-
+    svg.setPointerCapture(e.pointerId);
+  }
 });
-function startDrag(e){
+function startDrag(e) {
+  if (e.pointerId !== undefined) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
 
-    dragging=e.currentTarget;
+  dragging = e.currentTarget;
 
-    const id=dragging.dataset.id;
+  const id = dragging.dataset.id;
 
-    selectedNode=nodes.find(n=>n.id===id);
+  selectedNode = nodes.find((n) => n.id === id);
 
-    const pt=svg.createSVGPoint();
+  const pt = svg.createSVGPoint();
 
-    pt.x=e.clientX;
-    pt.y=e.clientY;
+  pt.x = e.clientX;
+  pt.y = e.clientY;
 
-    const p = pt.matrixTransform(
-    viewport.getScreenCTM().inverse()
+  const p = pt.matrixTransform(viewport.getScreenCTM().inverse());
 
-    );
+  offsetX = p.x - selectedNode.x;
+  offsetY = p.y - selectedNode.y;
 
-    offsetX=p.x-selectedNode.x;
-    offsetY=p.y-selectedNode.y;
-
-    dragStartPosition={
-        x:selectedNode.x,
-        y:selectedNode.y
-    };
-
+  dragStartPosition = {
+    x: selectedNode.x,
+    y: selectedNode.y,
+  };
 }
-svg.addEventListener("contextmenu",function(e){
-
-    if(panMode){
-
-        e.preventDefault();
-
-    }
-
+svg.addEventListener("contextmenu", function (e) {
+  if (panMode) {
+    e.preventDefault();
+  }
 });
-svg.addEventListener("mousemove",function(e){
+svg.addEventListener("pointermove", function (e) {
+  if (panMode) {
+    viewX = e.clientX - panStartX;
 
-    if(panMode){
-
-    viewX=e.clientX-panStartX;
-
-    viewY=e.clientY-panStartY;
+    viewY = e.clientY - panStartY;
 
     updateView();
 
     return;
+  }
 
-}
+  if (!dragging) return;
+  const pt = svg.createSVGPoint();
 
-if(!dragging) return;
-    const pt=svg.createSVGPoint();
+  pt.x = e.clientX;
+  pt.y = e.clientY;
 
-    pt.x=e.clientX;
-    pt.y=e.clientY;
+  const p = pt.matrixTransform(viewport.getScreenCTM().inverse());
 
-    const p = pt.matrixTransform(
-    viewport.getScreenCTM().inverse()
+  const snappedPosition = getSnappedPosition(p.x - offsetX, p.y - offsetY);
 
-    );
+  selectedNode.x = snappedPosition.x;
+  selectedNode.y = snappedPosition.y;
 
-    const snappedPosition=getSnappedPosition(p.x-offsetX,p.y-offsetY);
+  dragging.setAttribute(
+    "transform",
+    `translate(${selectedNode.x},${selectedNode.y})`,
+  );
 
-    selectedNode.x=snappedPosition.x;
-    selectedNode.y=snappedPosition.y;
-
-    dragging.setAttribute(
-        "transform",
-        `translate(${selectedNode.x},${selectedNode.y})`
-    );
-
-    drawLinksOnly();
-
+  drawLinksOnly();
 });
 
-window.addEventListener("mouseup",function(){
+window.addEventListener("pointerup", function () {
+  panMode = false;
 
-    panMode=false;
+  if (
+    dragging &&
+    selectedNode &&
+    dragStartPosition &&
+    (selectedNode.x !== dragStartPosition.x ||
+      selectedNode.y !== dragStartPosition.y)
+  ) {
+    const movedNode = selectedNode;
+    const endX = selectedNode.x;
+    const endY = selectedNode.y;
 
-    if(dragging && selectedNode && dragStartPosition &&
-        (selectedNode.x!==dragStartPosition.x || selectedNode.y!==dragStartPosition.y)){
+    selectedNode.x = dragStartPosition.x;
+    selectedNode.y = dragStartPosition.y;
+    recordHistory();
+    movedNode.x = endX;
+    movedNode.y = endY;
+  }
 
-        const movedNode=selectedNode;
-        const endX=selectedNode.x;
-        const endY=selectedNode.y;
-
-        selectedNode.x=dragStartPosition.x;
-        selectedNode.y=dragStartPosition.y;
-        recordHistory();
-        movedNode.x=endX;
-        movedNode.y=endY;
-
-    }
-
-    dragging=null;
-    dragStartPosition=null;
-    updateHistoryButtons();
-
+  dragging = null;
+  dragStartPosition = null;
+  updateHistoryButtons();
 });
 
 /* ==========================================================
    REDRAW LINKS ONLY
 ========================================================== */
 
-function drawLinksOnly(){
+function drawLinksOnly() {
+  linksLayer.innerHTML = "";
 
-    linksLayer.innerHTML="";
+  links.forEach((link) => {
+    const from = findCenter(link[0]);
+    const to = findCenter(link[1]);
 
-    links.forEach(link=>{
+    const hit = document.createElementNS(SVGNS, "line");
 
-        const from=findCenter(link[0]);
-        const to=findCenter(link[1]);
+    hit.setAttribute("x1", from.x);
+    hit.setAttribute("y1", from.y);
+    hit.setAttribute("x2", to.x);
+    hit.setAttribute("y2", to.y);
 
-        const hit=document.createElementNS(SVGNS,"line");
+    hit.setAttribute("stroke", "transparent");
+    hit.setAttribute("stroke-width", "16");
+    hit.style.pointerEvents = "stroke";
 
-        hit.setAttribute("x1",from.x);
-        hit.setAttribute("y1",from.y);
-        hit.setAttribute("x2",to.x);
-        hit.setAttribute("y2",to.y);
+    hit.dataset.from = link[0];
+    hit.dataset.to = link[1];
 
-        hit.setAttribute("stroke","transparent");
-        hit.setAttribute("stroke-width","16");
-        hit.style.pointerEvents="stroke";
+    hit.addEventListener("click", function (e) {
+      e.stopPropagation();
 
-        hit.dataset.from=link[0];
-        hit.dataset.to=link[1];
+      if (confirm("Hapus link ini?")) {
+        const idx = links.findIndex(
+          (l) => l[0] === this.dataset.from && l[1] === this.dataset.to,
+        );
 
-        hit.addEventListener("click",function(e){
+        if (idx >= 0) {
+          recordHistory();
 
-            e.stopPropagation();
+          links.splice(idx, 1);
 
-            if(confirm("Hapus link ini?")){
-
-                const idx=links.findIndex(l=>
-
-                    l[0]===this.dataset.from &&
-                    l[1]===this.dataset.to
-
-                );
-
-                if(idx>=0){
-
-                    recordHistory();
-
-                    links.splice(idx,1);
-
-                    render();
-
-                }
-
-            }
-
-        });
-
-        const line=document.createElementNS(SVGNS,"line");
-
-        line.classList.add("link");
-
-        line.setAttribute("x1",from.x);
-        line.setAttribute("y1",from.y);
-        line.setAttribute("x2",to.x);
-        line.setAttribute("y2",to.y);
-
-        linksLayer.appendChild(hit);
-        linksLayer.appendChild(line);
-
+          render();
+        }
+      }
     });
 
+    const line = document.createElementNS(SVGNS, "line");
+
+    line.classList.add("link");
+
+    line.setAttribute("x1", from.x);
+    line.setAttribute("y1", from.y);
+    line.setAttribute("x2", to.x);
+    line.setAttribute("y2", to.y);
+
+    linksLayer.appendChild(hit);
+    linksLayer.appendChild(line);
+  });
 }
 /* ==========================================================
    ZOOM ENGINE
 ========================================================== */
 
 let zoom = 1;
-function updateView(){
+function updateView() {
+  viewport.setAttribute(
+    "transform",
+    `translate(${viewX},${viewY}) scale(${zoom})`,
+  );
 
-    viewport.setAttribute(
-        "transform",
-        `translate(${viewX},${viewY}) scale(${zoom})`
-    );
-
-    updateLayoutTools();
-
+  updateLayoutTools();
 }
 
-
-document.addEventListener("wheel",function(e){
-
-    if(!e.ctrlKey) return;
+document.addEventListener(
+  "wheel",
+  function (e) {
+    if (!e.ctrlKey) return;
 
     e.preventDefault();
 
-    if(e.deltaY<0){
-
-        zoom*=1.1;
-
-    }else{
-
-        zoom/=1.1;
-
+    if (e.deltaY < 0) {
+      zoom *= 1.1;
+    } else {
+      zoom /= 1.1;
     }
 
-    if(zoom<0.3) zoom=0.3;
-    if(zoom>4) zoom=4;
+    if (zoom < 0.3) zoom = 0.3;
+    if (zoom > 4) zoom = 4;
 
     updateView();
-
-},{passive:false});
-
+  },
+  { passive: false },
+);
 
 /* ==========================================================
    SAVE LAYOUT
 ========================================================== */
 
-function createLayoutData(){
+function createLayoutData() {
+  return {
+    nodes: nodes.map((node) => ({
+      id: node.id,
+      type: node.type,
+      text: node.text,
+      ip: node.ip || "",
+      model: node.model || "",
+      location: node.location || "",
+      notes: node.notes || "",
+      x: node.x,
+      y: node.y,
+    })),
 
-    return{
+    links: links.map((link) => [link[0], link[1]]),
 
-        nodes:nodes.map(node=>({
-
-            id:node.id,
-            type:node.type,
-            text:node.text,
-            ip:node.ip || "",
-            model:node.model || "",
-            location:node.location || "",
-            notes:node.notes || "",
-            x:node.x,
-            y:node.y
-
-        })),
-
-        links:links.map(link=>[
-            link[0],
-            link[1]
-        ]),
-
-        zoom:zoom,
-        viewX:viewX,
-        viewY:viewY
-
-    };
-
+    zoom: zoom,
+    viewX: viewX,
+    viewY: viewY,
+  };
 }
 
-function saveLayout(){
+function saveLayout() {
+  const data = createLayoutData();
 
-    const data=createLayoutData();
+  const blob = new Blob([JSON.stringify(data, null, 4)], {
+    type: "application/json",
+  });
 
-    const blob=new Blob(
-        [JSON.stringify(data,null,4)],
-        {type:"application/json"}
-    );
+  const url = URL.createObjectURL(blob);
 
-    const url=URL.createObjectURL(blob);
+  const a = document.createElement("a");
 
-    const a=document.createElement("a");
+  a.href = url;
+  a.download = "hotel-network-diagram.json";
 
-    a.href=url;
-    a.download="hotel-network-diagram.json";
+  document.body.appendChild(a);
 
-    document.body.appendChild(a);
+  a.click();
 
-    a.click();
+  document.body.removeChild(a);
 
-    document.body.removeChild(a);
-
-    URL.revokeObjectURL(url);
-
+  URL.revokeObjectURL(url);
 }
-
 
 /* ==========================================================
    LOAD LAYOUT
 ========================================================== */
 
-function loadLayout(data){
+function loadLayout(data) {
+  if (!data) return;
 
-    if(!data) return;
+  const layout = JSON.parse(data);
 
-    const layout=JSON.parse(data);
+  const loadedNodes = Array.isArray(layout) ? layout : layout.nodes;
 
-    const loadedNodes=Array.isArray(layout) ? layout : layout.nodes;
+  if (Array.isArray(loadedNodes)) {
+    nodes.splice(0, nodes.length);
 
-    if(Array.isArray(loadedNodes)){
+    loadedNodes.forEach((n) => {
+      nodes.push({
+        id: n.id,
+        type: n.type,
+        text: n.text,
+        ip: n.ip || "",
+        model: n.model || "",
+        location: n.location || "",
+        notes: n.notes || "",
+        x: n.x,
+        y: n.y,
+      });
+    });
+  }
 
-        nodes.splice(0,nodes.length);
+  if (Array.isArray(layout.links)) {
+    links.splice(0, links.length);
 
-        loadedNodes.forEach(n=>{
+    layout.links.forEach((link) => {
+      if (Array.isArray(link) && link.length >= 2) {
+        links.push([link[0], link[1]]);
+      }
+    });
+  }
 
-            nodes.push({
+  if (typeof layout.zoom === "number") {
+    zoom = layout.zoom;
+  }
 
-                id:n.id,
-                type:n.type,
-                text:n.text,
-                ip:n.ip || "",
-                model:n.model || "",
-                location:n.location || "",
-                notes:n.notes || "",
-                x:n.x,
-                y:n.y
+  if (typeof layout.viewX === "number") {
+    viewX = layout.viewX;
+  }
 
-            });
+  if (typeof layout.viewY === "number") {
+    viewY = layout.viewY;
+  }
 
-        });
-
-    }
-
-    if(Array.isArray(layout.links)){
-
-        links.splice(0,links.length);
-
-        layout.links.forEach(link=>{
-
-            if(Array.isArray(link) && link.length>=2){
-
-                links.push([
-                    link[0],
-                    link[1]
-                ]);
-
-            }
-
-        });
-
-    }
-
-    if(typeof layout.zoom==="number"){
-
-        zoom=layout.zoom;
-
-    }
-
-    if(typeof layout.viewX==="number"){
-
-        viewX=layout.viewX;
-
-    }
-
-    if(typeof layout.viewY==="number"){
-
-        viewY=layout.viewY;
-
-    }
-
-    undoHistory.splice(0,undoHistory.length);
-    redoHistory.splice(0,redoHistory.length);
-    updateHistoryButtons();
-
+  undoHistory.splice(0, undoHistory.length);
+  redoHistory.splice(0, redoHistory.length);
+  updateHistoryButtons();
 }
-
-
 
 /* ==========================================================
    HIGH QUALITY PNG EXPORT
 ========================================================== */
 
-function getDiagramBounds(){
+function getDiagramBounds() {
+  const padding = 50;
 
-    const padding=50;
-
-    if(nodes.length===0){
-
-        return{
-            x:-padding,
-            y:-padding,
-            width:padding*2,
-            height:padding*2
-        };
-
-    }
-
-    let minX=Infinity;
-    let minY=Infinity;
-    let maxX=-Infinity;
-    let maxY=-Infinity;
-
-    nodes.forEach(node=>{
-
-        minX=Math.min(minX,node.x);
-        minY=Math.min(minY,node.y);
-        maxX=Math.max(maxX,node.x+NODE_WIDTH);
-        maxY=Math.max(maxY,node.y+NODE_HEIGHT);
-
-    });
-
-    return{
-        x:minX-padding,
-        y:minY-padding,
-        width:(maxX-minX)+(padding*2),
-        height:(maxY-minY)+(padding*2)
+  if (nodes.length === 0) {
+    return {
+      x: -padding,
+      y: -padding,
+      width: padding * 2,
+      height: padding * 2,
     };
+  }
 
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  nodes.forEach((node) => {
+    minX = Math.min(minX, node.x);
+    minY = Math.min(minY, node.y);
+    maxX = Math.max(maxX, node.x + NODE_WIDTH);
+    maxY = Math.max(maxY, node.y + NODE_HEIGHT);
+  });
+
+  return {
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  };
 }
 
-function createExportStyles(){
+function createExportStyles() {
+  const style = document.createElementNS(SVGNS, "style");
 
-    const style=document.createElementNS(SVGNS,"style");
-
-    style.textContent=`
+  style.textContent = `
         .node rect{fill:#2f3b52;stroke:#5ea8ff;stroke-width:2;rx:8;}
         .node circle,.deviceIcon{fill:#2f3136;stroke:#00c8ff;stroke-width:2;}
         .node text{fill:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:13px;text-anchor:middle;dominant-baseline:middle;user-select:none;pointer-events:none;}
         .link{stroke:#cfcfcf;stroke-width:2;fill:none;}
     `;
 
-    return style;
-
+  return style;
 }
 
-function exportPNG(){
+function exportPNG() {
+  render();
 
-    render();
+  const bounds = getDiagramBounds();
+  const scale = 4;
 
-    const bounds=getDiagramBounds();
-    const scale=4;
+  const exportSvg = document.createElementNS(SVGNS, "svg");
 
-    const exportSvg=document.createElementNS(SVGNS,"svg");
+  exportSvg.setAttribute("xmlns", SVGNS);
+  exportSvg.setAttribute("width", bounds.width);
+  exportSvg.setAttribute("height", bounds.height);
+  exportSvg.setAttribute(
+    "viewBox",
+    `${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`,
+  );
 
-    exportSvg.setAttribute("xmlns",SVGNS);
-    exportSvg.setAttribute("width",bounds.width);
-    exportSvg.setAttribute("height",bounds.height);
-    exportSvg.setAttribute("viewBox",`${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`);
+  exportSvg.appendChild(createExportStyles());
 
-    exportSvg.appendChild(createExportStyles());
+  const exportViewport = document.createElementNS(SVGNS, "g");
+  const exportLinks = linksLayer.cloneNode(true);
+  const exportNodes = nodesLayer.cloneNode(true);
 
-    const exportViewport=document.createElementNS(SVGNS,"g");
-    const exportLinks=linksLayer.cloneNode(true);
-    const exportNodes=nodesLayer.cloneNode(true);
+  exportNodes
+    .querySelectorAll(".selected")
+    .forEach((node) => node.classList.remove("selected"));
 
-    exportNodes
-        .querySelectorAll(".selected")
-        .forEach(node=>node.classList.remove("selected"));
+  exportViewport.appendChild(exportLinks);
+  exportViewport.appendChild(exportNodes);
 
-    exportViewport.appendChild(exportLinks);
-    exportViewport.appendChild(exportNodes);
+  exportSvg.appendChild(exportViewport);
 
-    exportSvg.appendChild(exportViewport);
+  const svgText = new XMLSerializer().serializeToString(exportSvg);
+  const blob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
 
-    const svgText=new XMLSerializer().serializeToString(exportSvg);
-    const blob=new Blob([svgText],{type:"image/svg+xml;charset=utf-8"});
-    const url=URL.createObjectURL(blob);
+  const img = new Image();
 
-    const img=new Image();
+  img.onload = function () {
+    const canvas = document.createElement("canvas");
 
-    img.onload=function(){
+    canvas.width = Math.ceil(bounds.width * scale);
+    canvas.height = Math.ceil(bounds.height * scale);
 
-        const canvas=document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
 
-        canvas.width=Math.ceil(bounds.width*scale);
-        canvas.height=Math.ceil(bounds.height*scale);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const ctx=canvas.getContext("2d");
+    URL.revokeObjectURL(url);
 
-        ctx.clearRect(0,0,canvas.width,canvas.height);
-        ctx.imageSmoothingEnabled=false;
-        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    canvas.toBlob(function (pngBlob) {
+      const pngUrl = URL.createObjectURL(pngBlob);
+      const a = document.createElement("a");
 
-        URL.revokeObjectURL(url);
+      a.href = pngUrl;
+      a.download = "Hotel-Network.png";
 
-        canvas.toBlob(function(pngBlob){
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
-            const pngUrl=URL.createObjectURL(pngBlob);
-            const a=document.createElement("a");
+      URL.revokeObjectURL(pngUrl);
+    }, "image/png");
+  };
 
-            a.href=pngUrl;
-            a.download="Hotel-Network.png";
-
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-
-            URL.revokeObjectURL(pngUrl);
-
-        },"image/png");
-
-    };
-
-    img.src=url;
-
+  img.src = url;
 }
 
 /* ==========================================================
@@ -1439,301 +1218,228 @@ updateLayoutTools();
    ADD DEVICE
 ========================================================== */
 
-const btnOpen=document.getElementById("btnOpen");
-const btnSave=document.getElementById("btnSave");
-const btnUndo=document.getElementById("btnUndo");
-const btnRedo=document.getElementById("btnRedo");
-const fileOpen=document.getElementById("fileOpen");
+const btnOpen = document.getElementById("btnOpen");
+const btnSave = document.getElementById("btnSave");
+const btnUndo = document.getElementById("btnUndo");
+const btnRedo = document.getElementById("btnRedo");
+const fileOpen = document.getElementById("fileOpen");
 
-const btnAddDevice=document.getElementById("btnAddDevice");
-const btnAddLink=document.getElementById("btnAddLink");
-const btnExportPNG=document.getElementById("btnExportPNG");
-const btnReset=document.getElementById("btnReset");
-const btnGrid=document.getElementById("btnGrid");
-const btnSnap=document.getElementById("btnSnap");
+const btnAddDevice = document.getElementById("btnAddDevice");
+const btnAddLink = document.getElementById("btnAddLink");
+const btnExportPNG = document.getElementById("btnExportPNG");
+const btnReset = document.getElementById("btnReset");
+const btnGrid = document.getElementById("btnGrid");
+const btnSnap = document.getElementById("btnSnap");
 
-const deviceModal=document.getElementById("deviceModal");
+const deviceModal = document.getElementById("deviceModal");
 
-const btnCreateDevice=document.getElementById("btnCreateDevice");
-const btnCloseDevice=document.getElementById("btnCloseDevice");
+const btnCreateDevice = document.getElementById("btnCreateDevice");
+const btnCloseDevice = document.getElementById("btnCloseDevice");
 
-const deviceType=document.getElementById("deviceType");
-const contextMenu=document.getElementById("contextMenu");
+const deviceType = document.getElementById("deviceType");
+const contextMenu = document.getElementById("contextMenu");
 
-const cmRename=document.getElementById("cmRename");
-const cmDuplicate=document.getElementById("cmDuplicate");
-const cmDelete=document.getElementById("cmDelete");
-btnSave.onclick=function(){
-
-    saveLayout();
-
+const cmRename = document.getElementById("cmRename");
+const cmDuplicate = document.getElementById("cmDuplicate");
+const cmDelete = document.getElementById("cmDelete");
+btnSave.onclick = function () {
+  saveLayout();
 };
-btnUndo.onclick=function(){
-
-    undo();
-
+btnUndo.onclick = function () {
+  undo();
 };
-btnRedo.onclick=function(){
-
-    redo();
-
+btnRedo.onclick = function () {
+  redo();
 };
-btnOpen.onclick=function(){
-
-    fileOpen.click();
-
+btnOpen.onclick = function () {
+  fileOpen.click();
 };
-fileOpen.onchange=function(){
+fileOpen.onchange = function () {
+  const file = fileOpen.files[0];
 
-    const file=fileOpen.files[0];
+  if (!file) return;
 
-    if(!file) return;
+  const reader = new FileReader();
 
-    const reader=new FileReader();
+  reader.onload = function () {
+    try {
+      loadLayout(reader.result);
 
-    reader.onload=function(){
+      selectedNode = null;
+      selectedElement = null;
 
-        try{
+      render();
+      updateView();
 
-            loadLayout(reader.result);
+      document.getElementById("statusBar").textContent = "Loaded " + file.name;
+    } catch (e) {
+      alert("File JSON tidak valid");
+    }
 
-            selectedNode=null;
-            selectedElement=null;
+    fileOpen.value = "";
+  };
 
-            render();
-            updateView();
-
-            document.getElementById("statusBar").textContent="Loaded "+file.name;
-
-        }catch(e){
-
-            alert("File JSON tidak valid");
-
-        }
-
-        fileOpen.value="";
-
-    };
-
-    reader.readAsText(file);
-
+  reader.readAsText(file);
 };
-btnAddDevice.onclick=function(){
-
-    deviceModal.style.display="flex";
-
+btnAddDevice.onclick = function () {
+  deviceModal.style.display = "flex";
 };
-btnExportPNG.onclick=function(){
-
-    exportPNG();
-
+btnExportPNG.onclick = function () {
+  exportPNG();
 };
-btnReset.onclick=function(){
-
-    resetView();
-
+btnReset.onclick = function () {
+  resetView();
 };
-btnGrid.onclick=function(){
-
-    gridEnabled=!gridEnabled;
-    updateLayoutTools();
-
+btnGrid.onclick = function () {
+  gridEnabled = !gridEnabled;
+  updateLayoutTools();
 };
-btnSnap.onclick=function(){
-
-    snapEnabled=!snapEnabled;
-    updateLayoutTools();
-
+btnSnap.onclick = function () {
+  snapEnabled = !snapEnabled;
+  updateLayoutTools();
 };
-btnAddLink.onclick=function(){
+btnAddLink.onclick = function () {
+  linkMode = true;
 
-    linkMode=true;
+  firstLinkNode = null;
 
-    firstLinkNode=null;
-
-    document.getElementById("statusBar").textContent=
-        "LINK MODE : pilih device pertama";
-
+  document.getElementById("statusBar").textContent =
+    "LINK MODE : pilih device pertama";
 };
 
-btnCloseDevice.onclick=function(){
-
-    deviceModal.style.display="none";
-
+btnCloseDevice.onclick = function () {
+  deviceModal.style.display = "none";
 };
 
-btnCreateDevice.onclick=function(){
+btnCreateDevice.onclick = function () {
+  const type = deviceType.value;
 
-    const type=deviceType.value;
+  const count = nodes.filter((n) => n.type === type).length + 1;
 
-    const count=nodes.filter(n=>n.type===type).length+1;
+  const id = type + "_" + Date.now();
 
-    const id=type+"_"+Date.now();
+  const label = type.toUpperCase() + "-" + String(count).padStart(3, "0");
 
-    const label=type.toUpperCase()+"-"+String(count).padStart(3,"0");
+  recordHistory();
 
-    recordHistory();
+  nodes.push({
+    id: id,
 
-    nodes.push({
+    type: type,
 
-        id:id,
+    text: label,
 
-        type:type,
+    x: getSnappedPosition(350, 220).x,
 
-        text:label,
+    y: getSnappedPosition(350, 220).y,
+  });
 
-        x:getSnappedPosition(350,220).x,
+  deviceModal.style.display = "none";
 
-        y:getSnappedPosition(350,220).y
-
-    });
-
-    deviceModal.style.display="none";
-
-    render();
-
+  render();
 };
 /* ==========================================================
    DELETE DEVICE
 ========================================================== */
 
-document.addEventListener("keydown",function(e){
+document.addEventListener("keydown", function (e) {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+    e.preventDefault();
+    undo();
+    return;
+  }
 
-    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==="z"){
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+    e.preventDefault();
+    redo();
+    return;
+  }
 
-        e.preventDefault();
-        undo();
-        return;
+  if (e.key !== "Delete") return;
 
-    }
+  if (!selectedNode) return;
 
-    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==="y"){
+  const idx = nodes.findIndex((n) => n.id === selectedNode.id);
 
-        e.preventDefault();
-        redo();
-        return;
-
-    }
-
-    if(e.key!=="Delete") return;
-
-    if(!selectedNode) return;
-
-    const idx=nodes.findIndex(n=>n.id===selectedNode.id);
-
-    if(idx>=0){
-
-        recordHistory();
-
-        nodes.splice(idx,1);
-
-    }
-
-    for(let i=links.length-1;i>=0;i--){
-
-        if(
-            links[i][0]===selectedNode.id ||
-            links[i][1]===selectedNode.id
-        ){
-
-            links.splice(i,1);
-
-        }
-
-    }
-
-    selectedNode=null;
-    selectedElement=null;
-
-    render();
-
-});
-document.addEventListener("click",function(){
-
-    contextMenu.style.display="none";
-
-});
-
-cmDelete.onclick=function(){
-
-    if(!contextTarget) return;
-
-    const idx=nodes.findIndex(n=>n.id===contextTarget.id);
-
-    if(idx>=0){
-
-        recordHistory();
-
-        nodes.splice(idx,1);
-
-    }
-
-    for(let i=links.length-1;i>=0;i--){
-
-        if(
-            links[i][0]===contextTarget.id ||
-            links[i][1]===contextTarget.id
-        ){
-
-            links.splice(i,1);
-
-        }
-
-    }
-
-    contextTarget=null;
-
-    contextMenu.style.display="none";
-
-    render();
-
-};
-cmRename.onclick=function(){
-
-    if(!contextTarget) return;
-
-    const nama=prompt(
-        "Nama Device",
-        contextTarget.text
-    );
-
-    if(nama===null) return;
-
-    if(contextTarget.text!==nama.trim()){
-
-        recordHistory();
-
-    }
-
-    contextTarget.text=nama.trim();
-
-    contextMenu.style.display="none";
-
-    render();
-
-};
-cmDuplicate.onclick=function(){
-
-    if(!contextTarget) return;
-
-    const copy={
-
-        ...contextTarget,
-
-        id:contextTarget.type+"_"+Date.now(),
-
-        x:getSnappedPosition(contextTarget.x+40,contextTarget.y+40).x,
-
-        y:getSnappedPosition(contextTarget.x+40,contextTarget.y+40).y
-
-    };
-
+  if (idx >= 0) {
     recordHistory();
 
-    nodes.push(copy);
+    nodes.splice(idx, 1);
+  }
 
-    contextMenu.style.display="none";
+  for (let i = links.length - 1; i >= 0; i--) {
+    if (links[i][0] === selectedNode.id || links[i][1] === selectedNode.id) {
+      links.splice(i, 1);
+    }
+  }
 
-    render();
+  selectedNode = null;
+  selectedElement = null;
 
+  render();
+});
+document.addEventListener("click", function () {
+  contextMenu.style.display = "none";
+});
+
+cmDelete.onclick = function () {
+  if (!contextTarget) return;
+
+  const idx = nodes.findIndex((n) => n.id === contextTarget.id);
+
+  if (idx >= 0) {
+    recordHistory();
+
+    nodes.splice(idx, 1);
+  }
+
+  for (let i = links.length - 1; i >= 0; i--) {
+    if (links[i][0] === contextTarget.id || links[i][1] === contextTarget.id) {
+      links.splice(i, 1);
+    }
+  }
+
+  contextTarget = null;
+
+  contextMenu.style.display = "none";
+
+  render();
+};
+cmRename.onclick = function () {
+  if (!contextTarget) return;
+
+  const nama = prompt("Nama Device", contextTarget.text);
+
+  if (nama === null) return;
+
+  if (contextTarget.text !== nama.trim()) {
+    recordHistory();
+  }
+
+  contextTarget.text = nama.trim();
+
+  contextMenu.style.display = "none";
+
+  render();
+};
+cmDuplicate.onclick = function () {
+  if (!contextTarget) return;
+
+  const copy = {
+    ...contextTarget,
+
+    id: contextTarget.type + "_" + Date.now(),
+
+    x: getSnappedPosition(contextTarget.x + 40, contextTarget.y + 40).x,
+
+    y: getSnappedPosition(contextTarget.x + 40, contextTarget.y + 40).y,
+  };
+
+  recordHistory();
+
+  nodes.push(copy);
+
+  contextMenu.style.display = "none";
+
+  render();
 };
