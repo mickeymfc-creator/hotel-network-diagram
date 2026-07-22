@@ -819,7 +819,7 @@ function startDrag(e) {
   pt.x = e.clientX;
   pt.y = e.clientY;
 
-  const p = pt.matrixTransform(viewport.getScreenCTM().inverse());
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
 
   offsetX = p.x - selectedNode.x;
   offsetY = p.y - selectedNode.y;
@@ -851,7 +851,7 @@ svg.addEventListener("pointermove", function (e) {
   pt.x = e.clientX;
   pt.y = e.clientY;
 
-  const p = pt.matrixTransform(viewport.getScreenCTM().inverse());
+  const p = pt.matrixTransform(svg.getScreenCTM().inverse());
 
   const snappedPosition = getSnappedPosition(p.x - offsetX, p.y - offsetY);
 
