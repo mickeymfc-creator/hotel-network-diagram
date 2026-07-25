@@ -261,9 +261,63 @@ render();
    RENDER
 ========================================================== */
 
-function snapToGrid(value) {
-  return Math.round(value / GRID_SIZE) * GRID_SIZE;
+function snapToGrid(value){
+
+    return Math.round(value/GRID_SIZE)*GRID_SIZE;
+
 }
+
+function getSnappedPosition(x,y){
+
+    if(!snapEnabled){
+
+        return{x:x,y:y};
+
+    }
+
+    return{
+        x:snapToGrid(x),
+        y:snapToGrid(y)
+    };
+
+}
+
+function updateToggleButton(button,isActive){
+
+    if(!button) return;
+
+    button.classList.toggle("active",isActive);
+    button.setAttribute("aria-pressed",String(isActive));
+
+}
+
+function updateLayoutTools(){
+
+    if(gridLayer){
+
+        gridLayer.classList.toggle("hidden",!gridEnabled);
+        gridLayer.setAttribute(
+            "transform",
+            `translate(${viewX},${viewY}) scale(${zoom})`
+        );
+
+    }
+
+    updateToggleButton(document.getElementById("btnGrid"),gridEnabled);
+    updateToggleButton(document.getElementById("btnSnap"),snapEnabled);
+
+}
+
+function resetView(){
+
+    zoom=1;
+    viewX=0;
+    viewY=0;
+    updateView();
+
+}
+
+function render(){
 
 function getSnappedPosition(x, y) {
   if (!snapEnabled) {
@@ -549,9 +603,14 @@ function drawNode(node) {
 
       t.textContent = line;
 
-      text.appendChild(t);
-    });
-  }
+        });
+
+    }
+
+    g.appendChild(text);
+
+    g.style.touchAction="none";
+    g.addEventListener("pointerdown",startDrag);
 
   g.appendChild(text);
   g.style.touchAction = "none";
@@ -793,6 +852,18 @@ document.getElementById("btnUpdate").onclick = function () {
 /* ==========================================================
    DRAG ENGINE
 ========================================================== */
+svg.addEventListener("pointerdown",function(e){
+
+    if(e.pointerType==="mouse" && e.button===2){
+
+        panMode=true;
+
+        panStartX=e.clientX-viewX;
+        panStartY=e.clientY-viewY;
+
+        svg.setPointerCapture(e.pointerId);
+
+    }
 svg.addEventListener("pointerdown", function (e) {
   if (e.pointerType === "mouse" && e.button === 2) {
     panMode = true;
@@ -803,6 +874,43 @@ svg.addEventListener("pointerdown", function (e) {
     svg.setPointerCapture(e.pointerId);
   }
 });
+
+function getPointerPosition(e){
+
+    const pt=svg.createSVGPoint();
+
+    pt.x=e.clientX;
+    pt.y=e.clientY;
+
+    return pt.matrixTransform(
+        viewport.getScreenCTM().inverse()
+    );
+
+}
+
+function startDrag(e){
+
+    if(e.pointerType==="mouse" && e.button!==0) return;
+
+    if(e.cancelable){
+
+        e.preventDefault();
+
+    }
+
+    dragging=e.currentTarget;
+
+    if(e.pointerId!==undefined){
+
+        dragging.setPointerCapture(e.pointerId);
+
+    }
+
+    const id=dragging.dataset.id;
+
+    selectedNode=nodes.find(n=>n.id===id);
+
+    const p=getPointerPosition(e);
 function getPointerPosition(e) {
     const pt = svg.createSVGPoint();
     pt.x = e.clientX;
@@ -835,68 +943,87 @@ function startDrag(e) {
     y: selectedNode.y,
   };
 }
-svg.addEventListener("contextmenu", function (e) {
-  if (panMode) {
-    e.preventDefault();
-  }
-});
-svg.addEventListener("pointermove", function (e) {
-  if (panMode) {
-    viewX = e.clientX - panStartX;
 
-    viewY = e.clientY - panStartY;
+svg.addEventListener("contextmenu",function(e){
 
-    updateView();
+    if(panMode){
 
-    return;
-  }
+        e.preventDefault();
 
-  if (!dragging) return;
-  const pt = svg.createSVGPoint();
+    }
 
-  pt.x = e.clientX;
-  pt.y = e.clientY;
-
-  const p = getPointerPosition(e);
-
-  const snappedPosition = getSnappedPosition(p.x - offsetX, p.y - offsetY);
-
-  selectedNode.x = snappedPosition.x;
-  selectedNode.y = snappedPosition.y;
-
-  dragging.setAttribute(
-    "transform",
-    `translate(${selectedNode.x},${selectedNode.y})`,
-  );
-
-  drawLinksOnly();
 });
 
-window.addEventListener("pointerup", function () {
-  panMode = false;
+function movePointer(e){
 
-  if (
-    dragging &&
-    selectedNode &&
-    dragStartPosition &&
-    (selectedNode.x !== dragStartPosition.x ||
-      selectedNode.y !== dragStartPosition.y)
-  ) {
-    const movedNode = selectedNode;
-    const endX = selectedNode.x;
-    const endY = selectedNode.y;
+    if(panMode){
 
-    selectedNode.x = dragStartPosition.x;
-    selectedNode.y = dragStartPosition.y;
-    recordHistory();
-    movedNode.x = endX;
-    movedNode.y = endY;
-  }
+        viewX=e.clientX-panStartX;
+        viewY=e.clientY-panStartY;
 
-  dragging = null;
-  dragStartPosition = null;
-  updateHistoryButtons();
-});
+        updateView();
+
+        return;
+
+    }
+
+    if(!dragging) return;
+
+    if(e.cancelable){
+
+        e.preventDefault();
+
+    }
+
+    const p=getPointerPosition(e);
+    const snappedPosition=getSnappedPosition(p.x-offsetX,p.y-offsetY);
+
+    selectedNode.x=snappedPosition.x;
+    selectedNode.y=snappedPosition.y;
+
+    dragging.setAttribute(
+        "transform",
+        `translate(${selectedNode.x},${selectedNode.y})`
+    );
+
+    drawLinksOnly();
+
+}
+
+function endPointer(e){
+
+    panMode=false;
+
+    if(dragging && e && e.pointerId!==undefined && dragging.hasPointerCapture(e.pointerId)){
+
+        dragging.releasePointerCapture(e.pointerId);
+
+    }
+
+    if(dragging && selectedNode && dragStartPosition &&
+        (selectedNode.x!==dragStartPosition.x || selectedNode.y!==dragStartPosition.y)){
+
+        const movedNode=selectedNode;
+        const endX=selectedNode.x;
+        const endY=selectedNode.y;
+
+        selectedNode.x=dragStartPosition.x;
+        selectedNode.y=dragStartPosition.y;
+        recordHistory();
+        movedNode.x=endX;
+        movedNode.y=endY;
+
+    }
+
+    dragging=null;
+    dragStartPosition=null;
+    updateHistoryButtons();
+
+}
+
+svg.addEventListener("pointermove",movePointer);
+window.addEventListener("pointerup",endPointer);
+window.addEventListener("pointercancel",endPointer);
 
 /* ==========================================================
    REDRAW LINKS ONLY
@@ -965,7 +1092,8 @@ function updateView() {
     `translate(${viewX},${viewY}) scale(${zoom})`,
   );
 
-  updateLayoutTools();
+    updateLayoutTools();
+
 }
 
 document.addEventListener(
@@ -1224,11 +1352,20 @@ updateLayoutTools();
    ADD DEVICE
 ========================================================== */
 
-const btnOpen = document.getElementById("btnOpen");
-const btnSave = document.getElementById("btnSave");
-const btnUndo = document.getElementById("btnUndo");
-const btnRedo = document.getElementById("btnRedo");
-const fileOpen = document.getElementById("fileOpen");
+const btnOpen=document.getElementById("btnOpen");
+const btnSave=document.getElementById("btnSave");
+const btnUndo=document.getElementById("btnUndo");
+const btnRedo=document.getElementById("btnRedo");
+const fileOpen=document.getElementById("fileOpen");
+
+const btnAddDevice=document.getElementById("btnAddDevice");
+const btnAddLink=document.getElementById("btnAddLink");
+const btnExportPNG=document.getElementById("btnExportPNG");
+const btnReset=document.getElementById("btnReset");
+const btnGrid=document.getElementById("btnGrid");
+const btnSnap=document.getElementById("btnSnap");
+
+const deviceModal=document.getElementById("deviceModal");
 
 const btnAddDevice = document.getElementById("btnAddDevice");
 const btnAddLink = document.getElementById("btnAddLink");
@@ -1293,8 +1430,32 @@ btnAddDevice.onclick = function () {
 btnExportPNG.onclick = function () {
   exportPNG();
 };
-btnReset.onclick = function () {
-  resetView();
+btnReset.onclick=function(){
+
+    resetView();
+
+};
+btnGrid.onclick=function(){
+
+    gridEnabled=!gridEnabled;
+    updateLayoutTools();
+
+};
+btnSnap.onclick=function(){
+
+    snapEnabled=!snapEnabled;
+    updateLayoutTools();
+
+};
+btnAddLink.onclick=function(){
+
+    linkMode=true;
+
+    firstLinkNode=null;
+
+    document.getElementById("statusBar").textContent=
+        "LINK MODE : pilih device pertama";
+
 };
 btnGrid.onclick = function () {
   gridEnabled = !gridEnabled;
@@ -1333,9 +1494,9 @@ btnCreateDevice.onclick = function () {
 
     type: type,
 
-    text: label,
+        x:getSnappedPosition(350,220).x,
 
-    x: getSnappedPosition(350, 220).x,
+        y:getSnappedPosition(350,220).y
 
     y: getSnappedPosition(350, 220).y,
   });
@@ -1441,9 +1602,9 @@ cmDuplicate.onclick = function () {
     y: getSnappedPosition(contextTarget.x + 40, contextTarget.y + 40).y,
   };
 
-  recordHistory();
+        x:getSnappedPosition(contextTarget.x+40,contextTarget.y+40).x,
 
-  nodes.push(copy);
+        y:getSnappedPosition(contextTarget.x+40,contextTarget.y+40).y
 
   contextMenu.style.display = "none";
 
