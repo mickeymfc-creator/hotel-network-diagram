@@ -635,8 +635,8 @@ if(node.type==="pabx"){
 
     g.appendChild(text);
 
-    g.addEventListener("mousedown",startDrag);
-    g.addEventListener("touchstart",startDrag,{passive:false});
+    g.style.touchAction="none";
+    g.addEventListener("pointerdown",startDrag);
 
     g.addEventListener("click",function(e){
 
@@ -935,62 +935,37 @@ document
 /* ==========================================================
    DRAG ENGINE
 ========================================================== */
-svg.addEventListener("mousedown",function(e){
+svg.addEventListener("pointerdown",function(e){
 
-    if(e.button!==2) return;
+    if(e.pointerType==="mouse" && e.button===2){
 
-    panMode=true;
+        panMode=true;
 
-    panStartX=e.clientX-viewX;
+        panStartX=e.clientX-viewX;
+        panStartY=e.clientY-viewY;
 
-    panStartY=e.clientY-viewY;
+        svg.setPointerCapture(e.pointerId);
+
+    }
 
 });
-function getClientPoint(e){
 
-    if(e.touches && e.touches.length>0){
+function getPointerPosition(e){
 
-        return{
-            x:e.touches[0].clientX,
-            y:e.touches[0].clientY
-        };
-
-    }
-
-    if(e.changedTouches && e.changedTouches.length>0){
-
-        return{
-            x:e.changedTouches[0].clientX,
-            y:e.changedTouches[0].clientY
-        };
-
-    }
-
-    return{
-        x:e.clientX,
-        y:e.clientY
-    };
-
-}
-
-function getViewportPoint(e){
-
-    const clientPoint=getClientPoint(e);
     const pt=svg.createSVGPoint();
 
-    pt.x=clientPoint.x;
-    pt.y=clientPoint.y;
+    pt.x=e.clientX;
+    pt.y=e.clientY;
 
     return pt.matrixTransform(
-    viewport.getScreenCTM().inverse()
-
+        viewport.getScreenCTM().inverse()
     );
 
 }
 
 function startDrag(e){
 
-    if(e.type==="mousedown" && e.button!==0) return;
+    if(e.pointerType==="mouse" && e.button!==0) return;
 
     if(e.cancelable){
 
@@ -1000,11 +975,17 @@ function startDrag(e){
 
     dragging=e.currentTarget;
 
+    if(e.pointerId!==undefined){
+
+        dragging.setPointerCapture(e.pointerId);
+
+    }
+
     const id=dragging.dataset.id;
 
     selectedNode=nodes.find(n=>n.id===id);
 
-    const p = getViewportPoint(e);
+    const p=getPointerPosition(e);
 
     offsetX=p.x-selectedNode.x;
     offsetY=p.y-selectedNode.y;
@@ -1015,6 +996,7 @@ function startDrag(e){
     };
 
 }
+
 svg.addEventListener("contextmenu",function(e){
 
     if(panMode){
@@ -1024,23 +1006,21 @@ svg.addEventListener("contextmenu",function(e){
     }
 
 });
+
 function movePointer(e){
 
     if(panMode){
 
-    const clientPoint=getClientPoint(e);
+        viewX=e.clientX-panStartX;
+        viewY=e.clientY-panStartY;
 
-    viewX=clientPoint.x-panStartX;
+        updateView();
 
-    viewY=clientPoint.y-panStartY;
+        return;
 
-    updateView();
+    }
 
-    return;
-
-}
-
-if(!dragging) return;
+    if(!dragging) return;
 
     if(e.cancelable){
 
@@ -1048,8 +1028,7 @@ if(!dragging) return;
 
     }
 
-    const p = getViewportPoint(e);
-
+    const p=getPointerPosition(e);
     const snappedPosition=getSnappedPosition(p.x-offsetX,p.y-offsetY);
 
     selectedNode.x=snappedPosition.x;
@@ -1064,12 +1043,15 @@ if(!dragging) return;
 
 }
 
-svg.addEventListener("mousemove",movePointer);
-svg.addEventListener("touchmove",movePointer,{passive:false});
-
-function endPointer(){
+function endPointer(e){
 
     panMode=false;
+
+    if(dragging && e && e.pointerId!==undefined && dragging.hasPointerCapture(e.pointerId)){
+
+        dragging.releasePointerCapture(e.pointerId);
+
+    }
 
     if(dragging && selectedNode && dragStartPosition &&
         (selectedNode.x!==dragStartPosition.x || selectedNode.y!==dragStartPosition.y)){
@@ -1092,9 +1074,9 @@ function endPointer(){
 
 }
 
-window.addEventListener("mouseup",endPointer);
-window.addEventListener("touchend",endPointer);
-window.addEventListener("touchcancel",endPointer);
+svg.addEventListener("pointermove",movePointer);
+window.addEventListener("pointerup",endPointer);
+window.addEventListener("pointercancel",endPointer);
 
 /* ==========================================================
    REDRAW LINKS ONLY
