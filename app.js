@@ -1553,6 +1553,13 @@ const btnCreateDevice=document.getElementById("btnCreateDevice");
 const btnCloseDevice=document.getElementById("btnCloseDevice");
 
 const deviceType=document.getElementById("deviceType");
+
+const deviceModel=document.getElementById("deviceModel");
+const devicePortCount=document.getElementById("devicePortCount");
+
+const lblModel=document.getElementById("lblModel");
+const lblPortCount=document.getElementById("lblPortCount");
+
 const contextMenu=document.getElementById("contextMenu");
 
 const cmRename=document.getElementById("cmRename");
