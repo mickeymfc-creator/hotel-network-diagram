@@ -1561,6 +1561,23 @@ function updateDeviceOptions(){
         DEVICE_MODELS[type][0].ports;
 
 }
+deviceType.onchange=function(){
+
+    updateDeviceOptions();
+
+};
+
+deviceModel.onchange=function(){
+
+    const option=deviceModel.selectedOptions[0];
+
+    if(option){
+
+        devicePortCount.value=option.dataset.ports;
+
+    }
+
+};
 loadFromLocalStorage();
 render();
 updateView();
