@@ -16,6 +16,7 @@ const SVGNS = "http://www.w3.org/2000/svg";
 let selectedNode = null;
 let dragging = null;
 let dragStartPosition = null;
+let draggingPointerId = null;
 
 let offsetX = 0;
 let offsetY = 0;
@@ -635,7 +636,7 @@ if(node.type==="pabx"){
 
     g.appendChild(text);
 
-    g.addEventListener("mousedown",startDrag);
+    g.addEventListener("pointerdown",startDrag);
 
     g.addEventListener("click",function(e){
 
@@ -945,23 +946,39 @@ svg.addEventListener("mousedown",function(e){
     panStartY=e.clientY-viewY;
 
 });
-function startDrag(e){
-
-    dragging=e.currentTarget;
-
-    const id=dragging.dataset.id;
-
-    selectedNode=nodes.find(n=>n.id===id);
+function getViewportPoint(e){
 
     const pt=svg.createSVGPoint();
 
     pt.x=e.clientX;
     pt.y=e.clientY;
 
-    const p = pt.matrixTransform(
-    viewport.getScreenCTM().inverse()
-
+    return pt.matrixTransform(
+        viewport.getScreenCTM().inverse()
     );
+
+}
+
+function startDrag(e){
+
+    if(e.pointerType==="mouse" && e.button!==0) return;
+
+    e.preventDefault();
+
+    dragging=e.currentTarget;
+    draggingPointerId=e.pointerId;
+
+    if(dragging.setPointerCapture){
+
+        dragging.setPointerCapture(e.pointerId);
+
+    }
+
+    const id=dragging.dataset.id;
+
+    selectedNode=nodes.find(n=>n.id===id);
+
+    const p=getViewportPoint(e);
 
     offsetX=p.x-selectedNode.x;
     offsetY=p.y-selectedNode.y;
@@ -981,7 +998,7 @@ svg.addEventListener("contextmenu",function(e){
     }
 
 });
-svg.addEventListener("mousemove",function(e){
+svg.addEventListener("pointermove",function(e){
 
     if(panMode){
 
@@ -995,16 +1012,11 @@ svg.addEventListener("mousemove",function(e){
 
 }
 
-if(!dragging) return;
-    const pt=svg.createSVGPoint();
+if(!dragging || e.pointerId!==draggingPointerId) return;
 
-    pt.x=e.clientX;
-    pt.y=e.clientY;
+    e.preventDefault();
 
-    const p = pt.matrixTransform(
-    viewport.getScreenCTM().inverse()
-
-    );
+    const p=getViewportPoint(e);
 
     const snappedPosition=getSnappedPosition(p.x-offsetX,p.y-offsetY);
 
@@ -1020,9 +1032,17 @@ if(!dragging) return;
 
 });
 
-window.addEventListener("mouseup",function(){
+function stopDrag(e){
 
     panMode=false;
+
+    if(e && draggingPointerId!==null && e.pointerId!==draggingPointerId) return;
+
+    if(dragging && dragging.releasePointerCapture && e){
+
+        dragging.releasePointerCapture(e.pointerId);
+
+    }
 
     if(dragging && selectedNode && dragStartPosition &&
         (selectedNode.x!==dragStartPosition.x || selectedNode.y!==dragStartPosition.y)){
@@ -1040,10 +1060,14 @@ window.addEventListener("mouseup",function(){
     }
 
     dragging=null;
+    draggingPointerId=null;
     dragStartPosition=null;
     updateHistoryButtons();
 
-});
+}
+
+window.addEventListener("pointerup",stopDrag);
+window.addEventListener("pointercancel",stopDrag);
 
 /* ==========================================================
    REDRAW LINKS ONLY
