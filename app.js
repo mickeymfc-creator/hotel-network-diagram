@@ -1682,6 +1682,8 @@ btnAddDevice.onclick=function(){
 
     deviceModal.style.display="flex";
 
+    updateDeviceOptions();
+
 };
 btnExportPNG.onclick=function(){
 
