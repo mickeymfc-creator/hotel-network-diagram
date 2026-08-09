@@ -175,20 +175,39 @@
 
         <h2>Add Device</h2>
 
-        <select id="deviceType">
+   <select id="deviceType">
 
-            <option value="router">Router</option>
-            <option value="switch">Switch</option>
-            <option value="ap">Access Point</option>
-            <option value="pc">PC</option>
-            <option value="nas">NAS</option>
-            <option value="camera">Camera</option>
-            <option value="dvr">DVR</option>
-            <option value="pabx">PABX</option>
-            <option value="cloud">Cloud</option>
+    <option value="router">Router</option>
+    <option value="switch">Switch</option>
+    <option value="ap">Access Point</option>
+    <option value="pc">PC</option>
+    <option value="nas">NAS</option>
+    <option value="camera">Camera</option>
+    <option value="dvr">DVR</option>
+    <option value="pabx">PABX</option>
+    <option value="cloud">Cloud</option>
 
-        </select>
+</select>
+    <label id="lblModel" style="display:none;">Model</label>
 
+<select id="deviceModel" style="display:none;">
+</select>
+
+<br><br>
+
+<label id="lblPortCount" style="display:none;">Port Count</label>
+
+<select id="devicePortCount" style="display:none;">
+    <option>5</option>
+    <option>8</option>
+    <option>10</option>
+    <option>13</option>
+    <option>16</option>
+    <option>24</option>
+    <option>48</option>
+    <option>52</option>
+</select>
+        
         <br><br>
 
         <button id="btnCreateDevice">Create</button>
