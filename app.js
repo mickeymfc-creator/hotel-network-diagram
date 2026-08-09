@@ -1532,6 +1532,8 @@ function updateDeviceOptions(){
 
     lblPortCount.style.display = "none";
     devicePortCount.style.display = "none";
+    deviceModel.innerHTML = "";
+    devicePortCount.selectedIndex = 0;
 
     if(type !== "router" && type !== "switch"){
         return;
