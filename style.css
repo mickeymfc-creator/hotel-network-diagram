@@ -272,6 +272,14 @@ html,body{
 
     cursor:pointer;
 
+    touch-action:none;
+
+}
+
+.node *{
+
+    touch-action:none;
+
 }
 
 .node rect{

@@ -47,7 +47,7 @@ let snapEnabled = true;
    DATA
 ========================================================== */
 
-const nodes = [
+const DEFAULT_NODES = [
 
 {
     id:"isp1",
@@ -139,7 +139,7 @@ const nodes = [
 
 ];
 
-const links = [
+const DEFAULT_LINKS = [
 
 ["isp1","router"],
 ["isp2","router"],
@@ -157,6 +157,8 @@ const links = [
 
 ];
 
+const nodes = DEFAULT_NODES.map(node=>({...node}));
+const links = DEFAULT_LINKS.map(link=>[link[0],link[1]]);
 
 /* ==========================================================
    UNDO / REDO HISTORY
@@ -177,7 +179,7 @@ function cloneDiagramState(){
 
 }
 
-function restoreDiagramState(state){
+function restoreDiagramState(state,shouldPersist=true){
 
     nodes.splice(0,nodes.length);
 
@@ -203,6 +205,12 @@ function restoreDiagramState(state){
 
     render();
     updateHistoryButtons();
+
+    if(shouldPersist){
+
+        saveToLocalStorage();
+
+    }
 
 }
 
@@ -283,12 +291,6 @@ function updateHistoryButtons(){
     }
 
 }
-
-/* ==========================================================
-   START
-========================================================== */
-
-render();
 
 /* ==========================================================
    RENDER
@@ -776,6 +778,7 @@ function drawLinks(){
                     links.splice(idx,1);
 
                     render();
+                    saveToLocalStorage();
 
                 }
 
@@ -861,6 +864,7 @@ if(linkMode){
     linkMode=false;
 
     render();
+    saveToLocalStorage();
 
     document.getElementById("statusBar").textContent="Ready";
 
@@ -930,6 +934,7 @@ document
         document.getElementById("propNotes").value;
 
     render();
+    saveToLocalStorage();
 
 };
 /* ==========================================================
@@ -1056,6 +1061,7 @@ function stopDrag(e){
         recordHistory();
         movedNode.x=endX;
         movedNode.y=endY;
+        saveToLocalStorage();
 
     }
 
@@ -1116,6 +1122,7 @@ function drawLinksOnly(){
                     links.splice(idx,1);
 
                     render();
+                    saveToLocalStorage();
 
                 }
 
@@ -1211,6 +1218,68 @@ function createLayoutData(){
         viewY:viewY
 
     };
+
+}
+
+const LOCAL_STORAGE_KEY="hotelNetworkDiagram.latest";
+
+function saveToLocalStorage(){
+
+    try{
+
+        localStorage.setItem(
+            LOCAL_STORAGE_KEY,
+            JSON.stringify(createLayoutData())
+        );
+
+    }catch(e){
+
+        console.warn("Unable to auto-save diagram",e);
+
+    }
+
+}
+
+function loadFromLocalStorage(){
+
+    try{
+
+        const saved=localStorage.getItem(LOCAL_STORAGE_KEY);
+
+        if(saved){
+
+            loadLayout(saved);
+            return true;
+
+        }
+
+    }catch(e){
+
+        console.warn("Unable to load saved diagram",e);
+
+    }
+
+    return false;
+
+}
+
+function resetToDefaultDiagram(){
+
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+
+    loadLayout(JSON.stringify({
+        nodes:DEFAULT_NODES,
+        links:DEFAULT_LINKS,
+        zoom:1,
+        viewX:0,
+        viewY:0
+    }));
+
+    selectedNode=null;
+    selectedElement=null;
+
+    render();
+    updateView();
 
 }
 
@@ -1455,6 +1524,7 @@ function exportPNG(){
    INITIALIZE
 ========================================================== */
 
+loadFromLocalStorage();
 render();
 updateView();
 updateHistoryButtons();
@@ -1473,6 +1543,7 @@ const btnAddDevice=document.getElementById("btnAddDevice");
 const btnAddLink=document.getElementById("btnAddLink");
 const btnExportPNG=document.getElementById("btnExportPNG");
 const btnReset=document.getElementById("btnReset");
+const btnResetDefault=document.getElementById("btnResetDefault");
 const btnGrid=document.getElementById("btnGrid");
 const btnSnap=document.getElementById("btnSnap");
 
@@ -1526,6 +1597,7 @@ fileOpen.onchange=function(){
 
             render();
             updateView();
+            saveToLocalStorage();
 
             document.getElementById("statusBar").textContent="Loaded "+file.name;
 
@@ -1555,6 +1627,15 @@ btnExportPNG.onclick=function(){
 btnReset.onclick=function(){
 
     resetView();
+
+};
+btnResetDefault.onclick=function(){
+
+    if(confirm("Reset to the built-in default diagram?")){
+
+        resetToDefaultDiagram();
+
+    }
 
 };
 btnGrid.onclick=function(){
@@ -1615,6 +1696,7 @@ btnCreateDevice.onclick=function(){
     deviceModal.style.display="none";
 
     render();
+    saveToLocalStorage();
 
 };
 /* ==========================================================
@@ -1670,6 +1752,7 @@ document.addEventListener("keydown",function(e){
     selectedElement=null;
 
     render();
+    saveToLocalStorage();
 
 });
 document.addEventListener("click",function(){
@@ -1710,6 +1793,7 @@ cmDelete.onclick=function(){
     contextMenu.style.display="none";
 
     render();
+    saveToLocalStorage();
 
 };
 cmRename.onclick=function(){
@@ -1734,6 +1818,7 @@ cmRename.onclick=function(){
     contextMenu.style.display="none";
 
     render();
+    saveToLocalStorage();
 
 };
 cmDuplicate.onclick=function(){
@@ -1759,5 +1844,6 @@ cmDuplicate.onclick=function(){
     contextMenu.style.display="none";
 
     render();
+    saveToLocalStorage();
 
 };
