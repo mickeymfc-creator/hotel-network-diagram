@@ -1523,7 +1523,44 @@ function exportPNG(){
 /* ==========================================================
    INITIALIZE
 ========================================================== */
+function updateDeviceOptions(){
 
+    const type = deviceType.value;
+
+    lblModel.style.display = "none";
+    deviceModel.style.display = "none";
+
+    lblPortCount.style.display = "none";
+    devicePortCount.style.display = "none";
+
+    if(type !== "router" && type !== "switch"){
+        return;
+    }
+
+    lblModel.style.display = "block";
+    deviceModel.style.display = "block";
+
+    lblPortCount.style.display = "block";
+    devicePortCount.style.display = "block";
+
+    deviceModel.innerHTML = "";
+
+    DEVICE_MODELS[type].forEach(model=>{
+
+        const option=document.createElement("option");
+
+        option.value=model.name;
+        option.textContent=model.name;
+        option.dataset.ports=model.ports;
+
+        deviceModel.appendChild(option);
+
+    });
+
+    devicePortCount.value =
+        DEVICE_MODELS[type][0].ports;
+
+}
 loadFromLocalStorage();
 render();
 updateView();
@@ -1559,6 +1596,26 @@ const devicePortCount=document.getElementById("devicePortCount");
 
 const lblModel=document.getElementById("lblModel");
 const lblPortCount=document.getElementById("lblPortCount");
+const DEVICE_MODELS = {
+
+    router: [
+        { name: "MikroTik RB1100AHx2", ports: 13 },
+        { name: "MikroTik RB4011", ports: 10 },
+        { name: "MikroTik hEX", ports: 5 },
+        { name: "Cisco ISR", ports: 4 },
+        { name: "Generic Router", ports: 1 }
+    ],
+
+    switch: [
+        { name: "Generic Switch", ports: 24 },
+        { name: "Cisco Catalyst", ports: 24 },
+        { name: "Cisco SG350", ports: 48 },
+        { name: "MikroTik CRS", ports: 24 },
+        { name: "TP-Link", ports: 24 },
+        { name: "D-Link", ports: 24 }
+    ]
+
+};
 
 const contextMenu=document.getElementById("contextMenu");
 
