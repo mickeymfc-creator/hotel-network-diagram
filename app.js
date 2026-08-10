@@ -1619,7 +1619,9 @@ const DEVICE_MODELS = {
     ]
 
 };
+deviceType.addEventListener("change", updateDeviceOptions);
 
+updateDeviceOptions();
 const contextMenu=document.getElementById("contextMenu");
 
 const cmRename=document.getElementById("cmRename");
@@ -1683,9 +1685,9 @@ fileOpen.onchange=function(){
 };
 btnAddDevice.onclick=function(){
 
-    deviceModal.style.display="flex";
-
     updateDeviceOptions();
+
+    deviceModal.style.display="flex";
 
 };
 btnExportPNG.onclick=function(){
