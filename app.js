@@ -1527,32 +1527,33 @@ function updateDeviceOptions(){
 
     const type = deviceType.value;
 
+    // sembunyikan dulu semuanya
     lblModel.style.display = "none";
     deviceModel.style.display = "none";
 
     lblPortCount.style.display = "none";
     devicePortCount.style.display = "none";
-    deviceModel.innerHTML = "";
-    devicePortCount.selectedIndex = 0;
 
+    deviceModel.innerHTML = "";
+
+    // kalau bukan router / switch selesai
     if(type !== "router" && type !== "switch"){
         return;
     }
 
-    lblModel.style.display = "block";
-    deviceModel.style.display = "block";
+    // tampilkan lagi
+    lblModel.style.display = "";
+    deviceModel.style.display = "";
 
-    lblPortCount.style.display = "block";
-    devicePortCount.style.display = "block";
-
-    deviceModel.innerHTML = "";
+    lblPortCount.style.display = "";
+    devicePortCount.style.display = "";
 
     DEVICE_MODELS[type].forEach(model=>{
 
         const option=document.createElement("option");
 
-        option.value=model.name;
         option.textContent=model.name;
+        option.value=model.name;
         option.dataset.ports=model.ports;
 
         deviceModel.appendChild(option);
@@ -1563,23 +1564,6 @@ function updateDeviceOptions(){
         DEVICE_MODELS[type][0].ports;
 
 }
-deviceType.onchange=function(){
-
-    updateDeviceOptions();
-
-};
-
-deviceModel.onchange=function(){
-
-    const option=deviceModel.selectedOptions[0];
-
-    if(option){
-
-        devicePortCount.value=option.dataset.ports;
-
-    }
-
-};
 loadFromLocalStorage();
 render();
 updateView();
