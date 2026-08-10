@@ -1685,6 +1685,8 @@ fileOpen.onchange=function(){
 };
 btnAddDevice.onclick=function(){
 
+    deviceType.selectedIndex = 0;
+
     updateDeviceOptions();
 
     deviceModal.style.display="flex";
