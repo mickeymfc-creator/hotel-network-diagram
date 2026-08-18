@@ -22,6 +22,8 @@ let offsetX = 0;
 let offsetY = 0;
 
 let selectedElement = null;
+let selectedLink = null;
+let linkEditHistoryRecorded = false;
 
 let linkMode=false;
 let firstLinkNode=null;
@@ -158,7 +160,84 @@ const DEFAULT_LINKS = [
 ];
 
 const nodes = DEFAULT_NODES.map(node=>({...node}));
-const links = DEFAULT_LINKS.map(link=>[link[0],link[1]]);
+const DEFAULT_LINK_APPEARANCE = {
+    color:"#cfcfcf",
+    width:2,
+    style:"solid",
+    opacity:1,
+    labelFollowsLine:true
+};
+
+function createDefaultLinkAppearance(){
+
+    return {...DEFAULT_LINK_APPEARANCE};
+
+}
+
+function normalizeLink(link){
+
+    if(Array.isArray(link)){
+
+        return{
+            from:link[0],
+            to:link[1],
+            appearance:createDefaultLinkAppearance()
+        };
+
+    }
+
+    return{
+        from:link.from || link[0],
+        to:link.to || link[1],
+        appearance:{
+            ...createDefaultLinkAppearance(),
+            ...(link.appearance || link.style || {})
+        },
+        meta:{...(link.meta || {})}
+    };
+
+}
+
+function cloneLink(link){
+
+    const normalized=normalizeLink(link);
+
+    return{
+        ...normalized,
+        appearance:{...normalized.appearance},
+        meta:{...(normalized.meta || {})}
+    };
+
+}
+
+function getLinkAppearance(link){
+
+    return normalizeLink(link).appearance;
+
+}
+
+function getLinkDashArray(appearance){
+
+    if(appearance.style==="dashed") return "10 7";
+    if(appearance.style==="dotted") return "2 7";
+
+    return "";
+
+}
+
+function applyLinkAppearance(line,link){
+
+    const appearance=getLinkAppearance(link);
+
+    line.setAttribute("stroke",appearance.color);
+    line.setAttribute("stroke-width",appearance.width);
+    line.setAttribute("stroke-opacity",appearance.opacity);
+    line.setAttribute("stroke-dasharray",getLinkDashArray(appearance));
+    line.setAttribute("stroke-linecap",appearance.style==="dotted" ? "round" : "butt");
+
+}
+
+const links = DEFAULT_LINKS.map(normalizeLink);
 
 /* ==========================================================
    UNDO / REDO HISTORY
@@ -173,7 +252,7 @@ function cloneDiagramState(){
     return{
 
         nodes:nodes.map(node=>({...node})),
-        links:links.map(link=>[link[0],link[1]])
+        links:links.map(cloneLink)
 
     };
 
@@ -193,12 +272,13 @@ function restoreDiagramState(state,shouldPersist=true){
 
     state.links.forEach(link=>{
 
-        links.push([link[0],link[1]]);
+        links.push(cloneLink(link));
 
     });
 
     selectedNode=null;
     selectedElement=null;
+    selectedLink=null;
     contextTarget=null;
     linkMode=false;
     firstLinkNode=null;
@@ -663,6 +743,77 @@ g.addEventListener("contextmenu",function(e){
 nodesLayer.appendChild(g);
 
 }
+
+function showNodeProperties(){
+
+    document.getElementById("nodeProperties").style.display="";
+    document.getElementById("linkProperties").style.display="none";
+
+}
+
+function showLinkProperties(){
+
+    document.getElementById("nodeProperties").style.display="none";
+    document.getElementById("linkProperties").style.display="";
+
+}
+
+function getNodeLabel(id){
+
+    const node=nodes.find(item=>item.id===id);
+
+    return node ? node.text : id;
+
+}
+
+function deleteSelectedLink(){
+
+    if(!selectedLink) return;
+
+    const idx=links.findIndex(link=>
+        link.from===selectedLink.from &&
+        link.to===selectedLink.to
+    );
+
+    if(idx>=0){
+
+        recordHistory();
+        links.splice(idx,1);
+        selectedLink=null;
+        showNodeProperties();
+        render();
+        saveToLocalStorage();
+
+    }
+
+}
+
+function selectLinkByEndpoints(from,to){
+
+    selectedLink=links.find(link=>link.from===from && link.to===to);
+
+    if(!selectedLink) return;
+
+    selectedNode=null;
+    selectedElement=null;
+    linkEditHistoryRecorded=false;
+
+    document
+        .querySelectorAll(".node")
+        .forEach(n=>n.classList.remove("selected"));
+
+    const appearance=getLinkAppearance(selectedLink);
+
+    document.getElementById("propLinkName").value=`${getNodeLabel(from)} → ${getNodeLabel(to)}`;
+    document.getElementById("propLinkColor").value=appearance.color;
+    document.getElementById("propLinkWidth").value=appearance.width;
+    document.getElementById("propLinkStyle").value=appearance.style;
+    document.getElementById("propLinkOpacity").value=appearance.opacity;
+
+    showLinkProperties();
+    render();
+
+}
 function drawCloud(icon){
 
     const path=document.createElementNS(SVGNS,"path");
@@ -740,8 +891,8 @@ function drawLinks(){
 
     links.forEach(link=>{
 
-        const from=findCenter(link[0]);
-        const to=findCenter(link[1]);
+        const from=findCenter(link.from);
+        const to=findCenter(link.to);
 
         // garis klik (tidak terlihat)
         const hit=document.createElementNS(SVGNS,"line");
@@ -755,34 +906,14 @@ function drawLinks(){
         hit.setAttribute("stroke-width","16");
         hit.style.pointerEvents="stroke";
 
-        hit.dataset.from=link[0];
-        hit.dataset.to=link[1];
+        hit.dataset.from=link.from;
+        hit.dataset.to=link.to;
 
         hit.addEventListener("click",function(e){
 
             e.stopPropagation();
 
-            if(confirm("Hapus link ini?")){
-
-                const idx=links.findIndex(l=>
-
-                    l[0]===this.dataset.from &&
-                    l[1]===this.dataset.to
-
-                );
-
-                if(idx>=0){
-
-                    recordHistory();
-
-                    links.splice(idx,1);
-
-                    render();
-                    saveToLocalStorage();
-
-                }
-
-            }
+            selectLinkByEndpoints(this.dataset.from,this.dataset.to);
 
         });
 
@@ -790,11 +921,21 @@ function drawLinks(){
         const line=document.createElementNS(SVGNS,"line");
 
         line.classList.add("link");
+        line.style.pointerEvents="none";
 
         line.setAttribute("x1",from.x);
         line.setAttribute("y1",from.y);
         line.setAttribute("x2",to.x);
         line.setAttribute("y2",to.y);
+        line.dataset.from=link.from;
+        line.dataset.to=link.to;
+        applyLinkAppearance(line,link);
+
+        if(selectedLink && selectedLink.from===link.from && selectedLink.to===link.to){
+
+            line.classList.add("selectedLink");
+
+        }
 
         linksLayer.appendChild(hit);
         linksLayer.appendChild(line);
@@ -835,6 +976,7 @@ function selectNode(e){
     const id=e.currentTarget.dataset.id;
 
     selectedNode=nodes.find(x=>x.id===id);
+    selectedLink=null;
 if(linkMode){
 
     if(firstLinkNode==null){
@@ -852,10 +994,10 @@ if(linkMode){
 
         recordHistory();
 
-        links.push([
+        links.push(normalizeLink([
             firstLinkNode.id,
             selectedNode.id
-        ]);
+        ]));
 
     }
 
@@ -886,6 +1028,8 @@ if(linkMode){
 
     document.getElementById("propNotes").value=
         selectedNode.notes || "";
+
+    showNodeProperties();
 
 }
 
@@ -1085,8 +1229,8 @@ function drawLinksOnly(){
 
     links.forEach(link=>{
 
-        const from=findCenter(link[0]);
-        const to=findCenter(link[1]);
+        const from=findCenter(link.from);
+        const to=findCenter(link.to);
 
         const hit=document.createElementNS(SVGNS,"line");
 
@@ -1099,45 +1243,35 @@ function drawLinksOnly(){
         hit.setAttribute("stroke-width","16");
         hit.style.pointerEvents="stroke";
 
-        hit.dataset.from=link[0];
-        hit.dataset.to=link[1];
+        hit.dataset.from=link.from;
+        hit.dataset.to=link.to;
 
         hit.addEventListener("click",function(e){
 
             e.stopPropagation();
 
-            if(confirm("Hapus link ini?")){
-
-                const idx=links.findIndex(l=>
-
-                    l[0]===this.dataset.from &&
-                    l[1]===this.dataset.to
-
-                );
-
-                if(idx>=0){
-
-                    recordHistory();
-
-                    links.splice(idx,1);
-
-                    render();
-                    saveToLocalStorage();
-
-                }
-
-            }
+            selectLinkByEndpoints(this.dataset.from,this.dataset.to);
 
         });
 
         const line=document.createElementNS(SVGNS,"line");
 
         line.classList.add("link");
+        line.style.pointerEvents="none";
 
         line.setAttribute("x1",from.x);
         line.setAttribute("y1",from.y);
         line.setAttribute("x2",to.x);
         line.setAttribute("y2",to.y);
+        line.dataset.from=link.from;
+        line.dataset.to=link.to;
+        applyLinkAppearance(line,link);
+
+        if(selectedLink && selectedLink.from===link.from && selectedLink.to===link.to){
+
+            line.classList.add("selectedLink");
+
+        }
 
         linksLayer.appendChild(hit);
         linksLayer.appendChild(line);
@@ -1208,10 +1342,7 @@ function createLayoutData(){
 
         })),
 
-        links:links.map(link=>[
-            link[0],
-            link[1]
-        ]),
+        links:links.map(cloneLink),
 
         zoom:zoom,
         viewX:viewX,
@@ -1277,6 +1408,7 @@ function resetToDefaultDiagram(){
 
     selectedNode=null;
     selectedElement=null;
+    selectedLink=null;
 
     render();
     updateView();
@@ -1352,12 +1484,9 @@ function loadLayout(data){
 
         layout.links.forEach(link=>{
 
-            if(Array.isArray(link) && link.length>=2){
+            if((Array.isArray(link) && link.length>=2) || (link && link.from && link.to)){
 
-                links.push([
-                    link[0],
-                    link[1]
-                ]);
+                links.push(normalizeLink(link));
 
             }
 
@@ -1441,7 +1570,7 @@ function createExportStyles(){
         .node rect{fill:#2f3b52;stroke:#5ea8ff;stroke-width:2;rx:8;}
         .node circle,.deviceIcon{fill:#2f3136;stroke:#00c8ff;stroke-width:2;}
         .node text{fill:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:13px;text-anchor:middle;dominant-baseline:middle;user-select:none;pointer-events:none;}
-        .link{stroke:#cfcfcf;stroke-width:2;fill:none;}
+        .link{fill:none;}
     `;
 
     return style;
@@ -1627,6 +1756,54 @@ const contextMenu=document.getElementById("contextMenu");
 const cmRename=document.getElementById("cmRename");
 const cmDuplicate=document.getElementById("cmDuplicate");
 const cmDelete=document.getElementById("cmDelete");
+const propLinkColor=document.getElementById("propLinkColor");
+const propLinkWidth=document.getElementById("propLinkWidth");
+const propLinkStyle=document.getElementById("propLinkStyle");
+const propLinkOpacity=document.getElementById("propLinkOpacity");
+const btnDeleteLink=document.getElementById("btnDeleteLink");
+
+function updateSelectedLinkAppearance(){
+
+    if(!selectedLink) return;
+
+    if(!linkEditHistoryRecorded){
+
+        recordHistory();
+        linkEditHistoryRecorded=true;
+
+    }
+
+    selectedLink.appearance={
+        ...createDefaultLinkAppearance(),
+        ...(selectedLink.appearance || {}),
+        color:propLinkColor.value,
+        width:Number(propLinkWidth.value) || DEFAULT_LINK_APPEARANCE.width,
+        style:propLinkStyle.value,
+        opacity:Number(propLinkOpacity.value) || DEFAULT_LINK_APPEARANCE.opacity
+    };
+
+    drawLinksOnly();
+    saveToLocalStorage();
+
+}
+
+[propLinkColor,propLinkWidth,propLinkStyle,propLinkOpacity].forEach(input=>{
+
+    input.addEventListener("input",updateSelectedLinkAppearance);
+    input.addEventListener("change",function(){
+
+        linkEditHistoryRecorded=false;
+
+    });
+
+});
+
+btnDeleteLink.onclick=function(){
+
+    deleteSelectedLink();
+
+};
+
 btnSave.onclick=function(){
 
     saveLayout();
@@ -1796,6 +1973,13 @@ document.addEventListener("keydown",function(e){
 
     if(e.key!=="Delete") return;
 
+    if(selectedLink){
+
+        deleteSelectedLink();
+        return;
+
+    }
+
     if(!selectedNode) return;
 
     const idx=nodes.findIndex(n=>n.id===selectedNode.id);
@@ -1811,8 +1995,8 @@ document.addEventListener("keydown",function(e){
     for(let i=links.length-1;i>=0;i--){
 
         if(
-            links[i][0]===selectedNode.id ||
-            links[i][1]===selectedNode.id
+            links[i].from===selectedNode.id ||
+            links[i].to===selectedNode.id
         ){
 
             links.splice(i,1);
@@ -1823,6 +2007,7 @@ document.addEventListener("keydown",function(e){
 
     selectedNode=null;
     selectedElement=null;
+    selectedLink=null;
 
     render();
     saveToLocalStorage();
@@ -1851,8 +2036,8 @@ cmDelete.onclick=function(){
     for(let i=links.length-1;i>=0;i--){
 
         if(
-            links[i][0]===contextTarget.id ||
-            links[i][1]===contextTarget.id
+            links[i].from===contextTarget.id ||
+            links[i].to===contextTarget.id
         ){
 
             links.splice(i,1);
