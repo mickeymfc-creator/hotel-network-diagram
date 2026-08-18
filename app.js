@@ -22,6 +22,8 @@ let offsetX = 0;
 let offsetY = 0;
 
 let selectedElement = null;
+let selectedLink = null;
+let linkEditHistoryRecorded = false;
 
 let linkMode=false;
 let firstLinkNode=null;
@@ -158,7 +160,184 @@ const DEFAULT_LINKS = [
 ];
 
 const nodes = DEFAULT_NODES.map(node=>({...node}));
-const links = DEFAULT_LINKS.map(link=>[link[0],link[1]]);
+const DEFAULT_LINK_APPEARANCE = {
+    color:"#cfcfcf",
+    width:2,
+    style:"solid",
+    opacity:1,
+    labelFollowsLine:true
+};
+
+function createDefaultLinkAppearance(){
+
+    return {...DEFAULT_LINK_APPEARANCE};
+
+}
+
+function normalizeLink(link){
+
+    if(Array.isArray(link)){
+
+        return{
+            fromDevice:link[0],
+            fromPort:getDefaultPortName(link[0],0),
+            toDevice:link[1],
+            toPort:getDefaultPortName(link[1],1),
+            appearance:createDefaultLinkAppearance()
+        };
+
+    }
+
+    return{
+        fromDevice:link.fromDevice || link.from || link[0],
+        fromPort:link.fromPort || getDefaultPortName(link.fromDevice || link.from || link[0],0),
+        toDevice:link.toDevice || link.to || link[1],
+        toPort:link.toPort || getDefaultPortName(link.toDevice || link.to || link[1],1),
+        appearance:{
+            ...createDefaultLinkAppearance(),
+            ...(link.appearance || link.style || {})
+        },
+        meta:{...(link.meta || {})}
+    };
+
+}
+
+function cloneLink(link){
+
+    const normalized=normalizeLink(link);
+
+    return{
+        ...normalized,
+        from:normalized.fromDevice,
+        to:normalized.toDevice,
+        appearance:{...normalized.appearance},
+        meta:{...(normalized.meta || {})}
+    };
+
+}
+
+function getLinkAppearance(link){
+
+    return normalizeLink(link).appearance;
+
+}
+
+function getLinkDashArray(appearance){
+
+    if(appearance.style==="dashed") return "10 7";
+    if(appearance.style==="dotted") return "2 7";
+
+    return "";
+
+}
+
+function applyLinkAppearance(line,link){
+
+    const appearance=getLinkAppearance(link);
+
+    line.style.stroke=appearance.color;
+    line.style.strokeWidth=appearance.width;
+    line.style.strokeOpacity=appearance.opacity;
+    line.style.strokeDasharray=getLinkDashArray(appearance);
+    line.style.strokeLinecap=appearance.style==="dotted" ? "round" : "butt";
+
+}
+
+const links = DEFAULT_LINKS.map(normalizeLink);
+function getNodePortCount(node){
+
+    if(!node) return 1;
+
+    const storedCount=Number(node.portCount);
+
+    if(Number.isFinite(storedCount) && storedCount>0) return storedCount;
+
+    if(node.type==="router") return 5;
+    if(node.type==="switch") return 24;
+
+    return 1;
+
+}
+
+function getPortNameByIndex(node,index){
+
+    const portIndex=index+1;
+
+    if(node && node.type==="router") return `ether${portIndex}`;
+    if(node && node.type==="switch") return `port${portIndex}`;
+
+    return `port${portIndex}`;
+
+}
+
+function getNodePortNames(node){
+
+    const count=getNodePortCount(node);
+
+    return Array.from({length:count},(_,index)=>getPortNameByIndex(node,index));
+
+}
+
+function getDefaultPortName(deviceId,index=0){
+
+    const node=nodes.find(item=>item.id===deviceId);
+
+    return getPortNameByIndex(node,index);
+
+}
+
+function getPortIndex(node,portName){
+
+    const names=getNodePortNames(node);
+    const index=names.indexOf(portName);
+
+    return index>=0 ? index : 0;
+
+}
+
+function findPortPosition(deviceId,portName){
+
+    const node=nodes.find(item=>item.id===deviceId);
+
+    if(!node){
+
+        return{x:0,y:0};
+
+    }
+
+    const portCount=getNodePortCount(node);
+    const portIndex=getPortIndex(node,portName);
+    const side=portIndex%2===0 ? "left" : "right";
+    const sideIndex=Math.floor(portIndex/2);
+    const sideCount=Math.ceil(portCount/2);
+    const gap=NODE_HEIGHT/(sideCount+1);
+
+    return{
+        x:node.x+(side==="left" ? 0 : NODE_WIDTH),
+        y:node.y+gap*(sideIndex+1)
+    };
+
+}
+
+function updatePortSelect(select,node,selectedPort){
+
+    select.innerHTML="";
+
+    getNodePortNames(node).forEach(portName=>{
+
+        const option=document.createElement("option");
+
+        option.value=portName;
+        option.textContent=portName;
+
+        select.appendChild(option);
+
+    });
+
+    select.value=selectedPort || select.options[0]?.value || "";
+
+}
+
 
 /* ==========================================================
    UNDO / REDO HISTORY
@@ -173,7 +352,7 @@ function cloneDiagramState(){
     return{
 
         nodes:nodes.map(node=>({...node})),
-        links:links.map(link=>[link[0],link[1]])
+        links:links.map(cloneLink)
 
     };
 
@@ -193,12 +372,13 @@ function restoreDiagramState(state,shouldPersist=true){
 
     state.links.forEach(link=>{
 
-        links.push([link[0],link[1]]);
+        links.push(cloneLink(link));
 
     });
 
     selectedNode=null;
     selectedElement=null;
+    selectedLink=null;
     contextTarget=null;
     linkMode=false;
     firstLinkNode=null;
@@ -638,6 +818,9 @@ if(node.type==="pabx"){
 
     g.appendChild(text);
 
+
+    drawPortMarkers(g,node);
+
     g.addEventListener("pointerdown",startDrag);
 
     g.addEventListener("click",function(e){
@@ -661,6 +844,108 @@ g.addEventListener("contextmenu",function(e){
 
 });
 nodesLayer.appendChild(g);
+
+}
+
+
+function drawPortMarkers(group,node){
+
+    const portCount=getNodePortCount(node);
+
+    for(let index=0;index<portCount;index++){
+
+        const side=index%2===0 ? "left" : "right";
+        const sideIndex=Math.floor(index/2);
+        const sideCount=Math.ceil(portCount/2);
+        const gap=NODE_HEIGHT/(sideCount+1);
+
+        const port=document.createElementNS(SVGNS,"circle");
+
+        port.classList.add("portMarker");
+        port.setAttribute("cx",side==="left" ? 0 : NODE_WIDTH);
+        port.setAttribute("cy",gap*(sideIndex+1));
+        port.setAttribute("r",2.5);
+
+        group.appendChild(port);
+
+    }
+
+}
+
+function showNodeProperties(){
+
+    document.getElementById("nodeProperties").style.display="";
+    document.getElementById("linkProperties").style.display="none";
+
+}
+
+function showLinkProperties(){
+
+    document.getElementById("nodeProperties").style.display="none";
+    document.getElementById("linkProperties").style.display="";
+
+}
+
+function getNodeLabel(id){
+
+    const node=nodes.find(item=>item.id===id);
+
+    return node ? node.text : id;
+
+}
+
+function deleteSelectedLink(){
+
+    if(!selectedLink) return;
+
+    const idx=links.findIndex(link=>
+        link.fromDevice===selectedLink.fromDevice &&
+        link.fromPort===selectedLink.fromPort &&
+        link.toDevice===selectedLink.toDevice &&
+        link.toPort===selectedLink.toPort
+    );
+
+    if(idx>=0){
+
+        recordHistory();
+        links.splice(idx,1);
+        selectedLink=null;
+        showNodeProperties();
+        render();
+        saveToLocalStorage();
+
+    }
+
+}
+
+function selectLinkByConnection(fromDevice,fromPort,toDevice,toPort){
+
+    selectedLink=links.find(link=>link.fromDevice===fromDevice && link.fromPort===fromPort && link.toDevice===toDevice && link.toPort===toPort);
+
+    if(!selectedLink) return;
+
+    selectedNode=null;
+    selectedElement=null;
+    linkEditHistoryRecorded=false;
+
+    document
+        .querySelectorAll(".node")
+        .forEach(n=>n.classList.remove("selected"));
+
+    const appearance=getLinkAppearance(selectedLink);
+
+    document.getElementById("propLinkName").value=`${getNodeLabel(fromDevice)}:${fromPort} → ${getNodeLabel(toDevice)}:${toPort}`;
+    document.getElementById("propFromDevice").value=getNodeLabel(fromDevice);
+    document.getElementById("propToDevice").value=getNodeLabel(toDevice);
+    updatePortSelect(propFromPort,nodes.find(node=>node.id===fromDevice),fromPort);
+    updatePortSelect(propToPort,nodes.find(node=>node.id===toDevice),toPort);
+    document.getElementById("propLinkColor").value=appearance.color;
+    document.getElementById("propLinkWidth").value=appearance.width;
+    document.getElementById("propLinkStyle").value=appearance.style;
+    document.getElementById("propLinkOpacity").value=appearance.opacity;
+
+    showLinkProperties();
+    render();
 
 }
 function drawCloud(icon){
@@ -740,8 +1025,8 @@ function drawLinks(){
 
     links.forEach(link=>{
 
-        const from=findCenter(link[0]);
-        const to=findCenter(link[1]);
+        const from=findPortPosition(link.fromDevice,link.fromPort);
+        const to=findPortPosition(link.toDevice,link.toPort);
 
         // garis klik (tidak terlihat)
         const hit=document.createElementNS(SVGNS,"line");
@@ -755,34 +1040,16 @@ function drawLinks(){
         hit.setAttribute("stroke-width","16");
         hit.style.pointerEvents="stroke";
 
-        hit.dataset.from=link[0];
-        hit.dataset.to=link[1];
+        hit.dataset.fromDevice=link.fromDevice;
+        hit.dataset.fromPort=link.fromPort;
+        hit.dataset.toDevice=link.toDevice;
+        hit.dataset.toPort=link.toPort;
 
         hit.addEventListener("click",function(e){
 
             e.stopPropagation();
 
-            if(confirm("Hapus link ini?")){
-
-                const idx=links.findIndex(l=>
-
-                    l[0]===this.dataset.from &&
-                    l[1]===this.dataset.to
-
-                );
-
-                if(idx>=0){
-
-                    recordHistory();
-
-                    links.splice(idx,1);
-
-                    render();
-                    saveToLocalStorage();
-
-                }
-
-            }
+            selectLinkByConnection(this.dataset.fromDevice,this.dataset.fromPort,this.dataset.toDevice,this.dataset.toPort);
 
         });
 
@@ -790,11 +1057,23 @@ function drawLinks(){
         const line=document.createElementNS(SVGNS,"line");
 
         line.classList.add("link");
+        line.style.pointerEvents="none";
 
         line.setAttribute("x1",from.x);
         line.setAttribute("y1",from.y);
         line.setAttribute("x2",to.x);
         line.setAttribute("y2",to.y);
+        line.dataset.fromDevice=link.fromDevice;
+        line.dataset.fromPort=link.fromPort;
+        line.dataset.toDevice=link.toDevice;
+        line.dataset.toPort=link.toPort;
+        applyLinkAppearance(line,link);
+
+        if(selectedLink && selectedLink.fromDevice===link.fromDevice && selectedLink.fromPort===link.fromPort && selectedLink.toDevice===link.toDevice && selectedLink.toPort===link.toPort){
+
+            line.classList.add("selectedLink");
+
+        }
 
         linksLayer.appendChild(hit);
         linksLayer.appendChild(line);
@@ -835,6 +1114,7 @@ function selectNode(e){
     const id=e.currentTarget.dataset.id;
 
     selectedNode=nodes.find(x=>x.id===id);
+    selectedLink=null;
 if(linkMode){
 
     if(firstLinkNode==null){
@@ -852,10 +1132,12 @@ if(linkMode){
 
         recordHistory();
 
-        links.push([
-            firstLinkNode.id,
-            selectedNode.id
-        ]);
+        links.push(normalizeLink({
+            fromDevice:firstLinkNode.id,
+            fromPort:getDefaultPortName(firstLinkNode.id,0),
+            toDevice:selectedNode.id,
+            toPort:getDefaultPortName(selectedNode.id,1)
+        }));
 
     }
 
@@ -886,6 +1168,8 @@ if(linkMode){
 
     document.getElementById("propNotes").value=
         selectedNode.notes || "";
+
+    showNodeProperties();
 
 }
 
@@ -1085,8 +1369,8 @@ function drawLinksOnly(){
 
     links.forEach(link=>{
 
-        const from=findCenter(link[0]);
-        const to=findCenter(link[1]);
+        const from=findPortPosition(link.fromDevice,link.fromPort);
+        const to=findPortPosition(link.toDevice,link.toPort);
 
         const hit=document.createElementNS(SVGNS,"line");
 
@@ -1099,45 +1383,39 @@ function drawLinksOnly(){
         hit.setAttribute("stroke-width","16");
         hit.style.pointerEvents="stroke";
 
-        hit.dataset.from=link[0];
-        hit.dataset.to=link[1];
+        hit.dataset.fromDevice=link.fromDevice;
+        hit.dataset.fromPort=link.fromPort;
+        hit.dataset.toDevice=link.toDevice;
+        hit.dataset.toPort=link.toPort;
 
         hit.addEventListener("click",function(e){
 
             e.stopPropagation();
 
-            if(confirm("Hapus link ini?")){
-
-                const idx=links.findIndex(l=>
-
-                    l[0]===this.dataset.from &&
-                    l[1]===this.dataset.to
-
-                );
-
-                if(idx>=0){
-
-                    recordHistory();
-
-                    links.splice(idx,1);
-
-                    render();
-                    saveToLocalStorage();
-
-                }
-
-            }
+            selectLinkByConnection(this.dataset.fromDevice,this.dataset.fromPort,this.dataset.toDevice,this.dataset.toPort);
 
         });
 
         const line=document.createElementNS(SVGNS,"line");
 
         line.classList.add("link");
+        line.style.pointerEvents="none";
 
         line.setAttribute("x1",from.x);
         line.setAttribute("y1",from.y);
         line.setAttribute("x2",to.x);
         line.setAttribute("y2",to.y);
+        line.dataset.fromDevice=link.fromDevice;
+        line.dataset.fromPort=link.fromPort;
+        line.dataset.toDevice=link.toDevice;
+        line.dataset.toPort=link.toPort;
+        applyLinkAppearance(line,link);
+
+        if(selectedLink && selectedLink.fromDevice===link.fromDevice && selectedLink.fromPort===link.fromPort && selectedLink.toDevice===link.toDevice && selectedLink.toPort===link.toPort){
+
+            line.classList.add("selectedLink");
+
+        }
 
         linksLayer.appendChild(hit);
         linksLayer.appendChild(line);
@@ -1203,15 +1481,13 @@ function createLayoutData(){
             model:node.model || "",
             location:node.location || "",
             notes:node.notes || "",
+            portCount:getNodePortCount(node),
             x:node.x,
             y:node.y
 
         })),
 
-        links:links.map(link=>[
-            link[0],
-            link[1]
-        ]),
+        links:links.map(cloneLink),
 
         zoom:zoom,
         viewX:viewX,
@@ -1277,6 +1553,7 @@ function resetToDefaultDiagram(){
 
     selectedNode=null;
     selectedElement=null;
+    selectedLink=null;
 
     render();
     updateView();
@@ -1337,6 +1614,7 @@ function loadLayout(data){
                 model:n.model || "",
                 location:n.location || "",
                 notes:n.notes || "",
+                portCount:n.portCount || n.ports || "",
                 x:n.x,
                 y:n.y
 
@@ -1352,12 +1630,9 @@ function loadLayout(data){
 
         layout.links.forEach(link=>{
 
-            if(Array.isArray(link) && link.length>=2){
+            if((Array.isArray(link) && link.length>=2) || (link && (link.fromDevice || link.from) && (link.toDevice || link.to))){
 
-                links.push([
-                    link[0],
-                    link[1]
-                ]);
+                links.push(normalizeLink(link));
 
             }
 
@@ -1441,7 +1716,7 @@ function createExportStyles(){
         .node rect{fill:#2f3b52;stroke:#5ea8ff;stroke-width:2;rx:8;}
         .node circle,.deviceIcon{fill:#2f3136;stroke:#00c8ff;stroke-width:2;}
         .node text{fill:#ffffff;font-family:Segoe UI,Arial,sans-serif;font-size:13px;text-anchor:middle;dominant-baseline:middle;user-select:none;pointer-events:none;}
-        .link{stroke:#cfcfcf;stroke-width:2;fill:none;}
+        .link{fill:none;}
     `;
 
     return style;
@@ -1620,6 +1895,17 @@ const DEVICE_MODELS = {
 
 };
 deviceType.addEventListener("change", updateDeviceOptions);
+deviceModel.addEventListener("change",function(){
+
+    const selectedOption=deviceModel.options[deviceModel.selectedIndex];
+
+    if(selectedOption && selectedOption.dataset.ports){
+
+        devicePortCount.value=selectedOption.dataset.ports;
+
+    }
+
+});
 
 updateDeviceOptions();
 const contextMenu=document.getElementById("contextMenu");
@@ -1627,6 +1913,91 @@ const contextMenu=document.getElementById("contextMenu");
 const cmRename=document.getElementById("cmRename");
 const cmDuplicate=document.getElementById("cmDuplicate");
 const cmDelete=document.getElementById("cmDelete");
+const propFromPort=document.getElementById("propFromPort");
+const propToPort=document.getElementById("propToPort");
+const propLinkColor=document.getElementById("propLinkColor");
+const propLinkWidth=document.getElementById("propLinkWidth");
+const propLinkStyle=document.getElementById("propLinkStyle");
+const propLinkOpacity=document.getElementById("propLinkOpacity");
+const btnDeleteLink=document.getElementById("btnDeleteLink");
+
+
+function updateSelectedLinkPorts(){
+
+    if(!selectedLink) return;
+
+    if(!linkEditHistoryRecorded){
+
+        recordHistory();
+        linkEditHistoryRecorded=true;
+
+    }
+
+    selectedLink.fromPort=propFromPort.value;
+    selectedLink.toPort=propToPort.value;
+    selectedLink.from=selectedLink.fromDevice;
+    selectedLink.to=selectedLink.toDevice;
+
+    document.getElementById("propLinkName").value=`${getNodeLabel(selectedLink.fromDevice)}:${selectedLink.fromPort} → ${getNodeLabel(selectedLink.toDevice)}:${selectedLink.toPort}`;
+
+    render();
+    saveToLocalStorage();
+
+}
+
+[propFromPort,propToPort].forEach(input=>{
+
+    input.addEventListener("change",function(){
+
+        updateSelectedLinkPorts();
+        linkEditHistoryRecorded=false;
+
+    });
+
+});
+
+function updateSelectedLinkAppearance(){
+
+    if(!selectedLink) return;
+
+    if(!linkEditHistoryRecorded){
+
+        recordHistory();
+        linkEditHistoryRecorded=true;
+
+    }
+
+    selectedLink.appearance={
+        ...createDefaultLinkAppearance(),
+        ...(selectedLink.appearance || {}),
+        color:propLinkColor.value,
+        width:Number(propLinkWidth.value) || DEFAULT_LINK_APPEARANCE.width,
+        style:propLinkStyle.value,
+        opacity:Number(propLinkOpacity.value) || DEFAULT_LINK_APPEARANCE.opacity
+    };
+
+    drawLinksOnly();
+    saveToLocalStorage();
+
+}
+
+[propLinkColor,propLinkWidth,propLinkStyle,propLinkOpacity].forEach(input=>{
+
+    input.addEventListener("input",updateSelectedLinkAppearance);
+    input.addEventListener("change",function(){
+
+        linkEditHistoryRecorded=false;
+
+    });
+
+});
+
+btnDeleteLink.onclick=function(){
+
+    deleteSelectedLink();
+
+};
+
 btnSave.onclick=function(){
 
     saveLayout();
@@ -1760,6 +2131,10 @@ btnCreateDevice.onclick=function(){
 
         text:label,
 
+        model:deviceModel.style.display==="none" ? "" : deviceModel.value,
+
+        portCount:devicePortCount.style.display==="none" ? 1 : Number(devicePortCount.value),
+
         x:getSnappedPosition(350,220).x,
 
         y:getSnappedPosition(350,220).y
@@ -1796,6 +2171,13 @@ document.addEventListener("keydown",function(e){
 
     if(e.key!=="Delete") return;
 
+    if(selectedLink){
+
+        deleteSelectedLink();
+        return;
+
+    }
+
     if(!selectedNode) return;
 
     const idx=nodes.findIndex(n=>n.id===selectedNode.id);
@@ -1811,8 +2193,8 @@ document.addEventListener("keydown",function(e){
     for(let i=links.length-1;i>=0;i--){
 
         if(
-            links[i][0]===selectedNode.id ||
-            links[i][1]===selectedNode.id
+            links[i].from===selectedNode.id ||
+            links[i].to===selectedNode.id
         ){
 
             links.splice(i,1);
@@ -1823,6 +2205,7 @@ document.addEventListener("keydown",function(e){
 
     selectedNode=null;
     selectedElement=null;
+    selectedLink=null;
 
     render();
     saveToLocalStorage();
@@ -1851,8 +2234,8 @@ cmDelete.onclick=function(){
     for(let i=links.length-1;i>=0;i--){
 
         if(
-            links[i][0]===contextTarget.id ||
-            links[i][1]===contextTarget.id
+            links[i].from===contextTarget.id ||
+            links[i].to===contextTarget.id
         ){
 
             links.splice(i,1);

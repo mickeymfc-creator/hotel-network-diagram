@@ -194,7 +194,9 @@ html,body{
 
 #propertyPanel input,
 
-#propertyPanel textarea{
+#propertyPanel textarea,
+
+#propertyPanel select{
 
     width:100%;
 
@@ -213,6 +215,46 @@ html,body{
 #propertyPanel textarea{
 
     resize:vertical;
+
+}
+
+#propertyPanel input[type="color"]{
+
+    height:42px;
+
+    padding:4px;
+
+}
+
+#propertyPanel input[readonly]{
+
+    color:#bdbdbd;
+
+}
+
+#btnDeleteLink{
+
+    width:100%;
+
+    margin-top:18px;
+
+    height:40px;
+
+    border:none;
+
+    background:#c62828;
+
+    color:white;
+
+    border-radius:6px;
+
+    cursor:pointer;
+
+}
+
+#btnDeleteLink:hover{
+
+    background:#a31515;
 
 }
 
@@ -310,11 +352,13 @@ html,body{
 
 .link{
 
-    stroke:#cfcfcf;
-
-    stroke-width:2;
-
     fill:none;
+
+}
+
+.link.selectedLink{
+
+    filter:drop-shadow(0 0 4px #ff9800);
 
 }
 
@@ -464,5 +508,17 @@ html,body{
 .contextMenu div:hover{
 
     background:#3c3c3c;
+
+}
+
+.portMarker{
+
+    fill:#181818;
+
+    stroke:#00d4ff;
+
+    stroke-width:1.2;
+
+    pointer-events:none;
 
 }
