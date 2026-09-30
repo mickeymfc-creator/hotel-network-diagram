@@ -1601,6 +1601,24 @@ function exportPNG(){
         .querySelectorAll(".selected")
         .forEach(node=>node.classList.remove("selected"));
 
+    // Apply all text styling inline so SVG -> Image -> PNG
+    // does not depend on browser CSS resolution.
+    exportNodes.querySelectorAll("text").forEach(textNode=>{
+        textNode.setAttribute("fill","#ffffff");
+        textNode.setAttribute("font-family","Segoe UI, Arial, sans-serif");
+        textNode.setAttribute("font-size","13px");
+        textNode.setAttribute("font-weight","400");
+        textNode.setAttribute("text-anchor","middle");
+        textNode.setAttribute("dominant-baseline","middle");
+        textNode.setAttribute("xml:space","preserve");
+        textNode.style.fill="#ffffff";
+        textNode.style.fontFamily="Segoe UI, Arial, sans-serif";
+        textNode.style.fontSize="13px";
+        textNode.style.fontWeight="400";
+        textNode.style.textAnchor="middle";
+        textNode.style.dominantBaseline="middle";
+    });
+
     exportViewport.appendChild(exportLinks);
     exportViewport.appendChild(exportNodes);
 
